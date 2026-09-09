@@ -38,7 +38,13 @@ try {
         if (-not $Sha256) { throw 'Local test binaries require -Sha256.' }
     } else { throw 'Binary must be an HTTPS release URL or an existing local file.' }
     if ($Sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'The release checksum is invalid.' }
-    if ((Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash -ine $Sha256) { throw 'Download checksum mismatch. The existing installation was preserved.' }
+    # Use the built-in .NET implementation. An inherited PowerShell 7 module path
+    # can prevent Windows PowerShell 5 from loading Get-FileHash's script module.
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($candidate)
+    try { $actualHash = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+    if ($actualHash -ine $Sha256) { throw 'Download checksum mismatch. The existing installation was preserved.' }
     $reported = & $candidate --version
     if ($LASTEXITCODE -ne 0 -or $reported -ne "ssh-sessions $Version") { throw 'The downloaded app could not run or has the wrong version.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
