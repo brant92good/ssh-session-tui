@@ -1,141 +1,89 @@
 # Verification
 
-**macOS and Linux support is beta.** Installation, update and local-shell tests
-pass in CI; real remote login in desktop terminal apps remains unqualified.
+The production candidate is **SSH Sessions 0.6.0**, implemented in Rust.
+macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
+physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
+## Native checks
 
-## Portable installer and terminal checks (0.5)
+On September 10, 2026, the 23 native tests passed locally on Windows. These cover
+catalog validation, stale edits, route/favorite persistence, Unicode case folding,
+groups, imports, explicit fallback, modal input and guarded Git sync. Clippy
+passed with warnings denied, including the screenshot exporter.
 
-On September 9, 2026 the expanded 83-test suite passed on Windows (80 run,
-3 platform skips) and Ubuntu 24.04 through WSL2 (82 run, 1 platform skip).
-The Unix test uses an owned pseudo-terminal: open Local terminal from favorite
-2, print a nonce, interrupt `sleep` with Ctrl+C, print another nonce, resize,
-exit the shell and quit the returned picker. No visible window is opened.
+The new Windows test owns a ConPTY without opening a desktop window. It launches
+the actual native picker, opens Local terminal, executes nonce output, interrupts
+a running PowerShell sleep with Ctrl+C, executes a second nonce, resizes, exits
+the shell, returns to the picker and quits with **exit code 0**. This replaces
+the earlier ambiguous observation through an outer PowerShell tool wrapper.
 
-Fresh installer checks downloaded a managed Python runtime on Windows and
-WSL, installed into a path containing spaces and Chinese characters, ran the
-command with invalid PYTHONHOME and a conflicting project module, and repeated
-installation while preserving a temporary catalog and numbered favorite.
-PATH updates were disabled for these local tests. Windows also exercised
-Windows PowerShell 5 launched through Python from PowerShell 7; the installer
-loads its own host's Security module to avoid the inherited module-path conflict.
+[Native CI](https://github.com/brant92good/ssh-session-tui/actions/workflows/native.yml)
+builds Windows x64, Linux x64/ARM64 using musl, and macOS ARM64/Intel. It runs the
+same tests, local-shell PTY checks and binary installer checks. Linux additionally
+uses a temporary loopback OpenSSH server with test-only keys and configuration
+to check remote commands, Ctrl+C, resizing, logout and return to the native picker.
+A loopback server proves the SSH handoff; it does not prove an external network
+or a specific third-party proxy.
 
-[The September 9 CI run](https://github.com/brant92good/ssh-session-tui/actions/runs/34352141990)
-passed on Windows, Ubuntu and macOS 14 with Python 3.12/3.13, plus a
-fresh install/update check per OS. Its Unix pseudo-terminal tests qualify the
-local shell handoff, not every macOS/Linux terminal application. Live remote SSH
-handoff has been checked on Windows as recorded below; Linux/macOS real-server
-login and desktop shortcut/focus behavior still need separate qualification.
+## Saved-data and installer checks
 
-Checked September 9, 2026 on Windows 11 Pro build 26200, Windows Terminal
-1.24.11911.0, PowerShell 7.6.5 and Python 3.12.11. This is evidence from one
-desktop, not a guarantee for every terminal, SSH configuration or future version.
+`scripts/check_native_compat.py` runs the compiled binary against files created
+by the legacy implementation, then reads native writes through that old reader.
+It covers catalogs, route preferences, favorite filenames, shared process locks,
+groups, custom SSH import bindings and argument arrays. Fixtures include sharp S,
+dotted I, final sigma, a ligature and Cherokee in a Windows catalog path, numeric
+string ports and UTF-8 BOMs. No real catalog or SSH host is used.
 
-The local suite covers metadata validation, Unicode, two independent device
-preferences, stale-edit rejection, forbidden fields, keyboard route selection,
-fallback confirmation, search, local-shell choice and preserving invalid form
-input for correction. Connection-loop tests verify that a failed attempt does
-not start another route and an explicitly chosen alternative does not change
-the device preference.
-The initial 0.1 release passed 31 tests locally. A fresh virtual environment in a path containing
-spaces and Chinese characters also installed the built package successfully;
-its console entry, UI import, read-only commands and `pip check` passed from
-outside the source directory.
+The root installers download a binary, check its SHA-256 hash and version, and
+replace only the owned app command. `scripts/check_native_install.py` covers
+fresh install, repeated update, invalid checksums, unrelated-directory refusal,
+spaces/Unicode/quotes in paths, preserved favorites, retained legacy runtimes and
+inherited Python/Conda variables. Local checks disable PATH modifications; CI
+also checks PATH setup on disposable runners.
 
-Git tests use temporary local repositories for two-device pull/publish. They
-verify preservation of unrelated staged files, refusal to overwrite local
-changes, refusal to push unrelated unpublished commits, and validation of
-earlier unpublished catalog versions. A reverted unrelated file or a repaired
-credential-bearing catalog still causes Publish to refuse that history.
+A native Windows build was inspected with `dumpbin /DEPENDENTS`: static CRT
+linking removes the separate VCRUNTIME DLL import. Windows system DLLs remain
+normal dependencies. Linux artifacts use musl. The app does not launch Python.
 
-An installed, real desktop test opened a small owned Terminal window and used
-Ctrl+Shift+T to start the picker. Enter connected to its single configured
-machine. A typed `printf` marker was returned by the remote shell; its expected
-output was not present literally in the command text, avoiding a false pass
-from terminal echo. Exiting SSH returned to the picker. Ctrl+Alt+N opened a
-separate local tab, where another marker confirmed PowerShell Core.
+Tag publication creates a prerelease only after native checks pass. The workflow
+then runs `scripts/check_release_install.py` on all five platforms against the
+**public HTTPS one-command installer and those released assets**, covering fresh
+installation, update, rejection of a wrong checksum and preserved favorite data.
+Stable promotion requires those checks and independent review.
 
-The test closed only its own window and verified the original tab identities
-remained. It checks foreground ownership before keyboard input and stops if
-another application gains focus. Reproduction lives in Terminal Workspace's
-[check_session_picker.py](https://github.com/brant92good/terminal-workspace/blob/main/scripts/check_session_picker.py).
-It requires explicit `--yes`, an installed picker as the default profile, and
-one already reachable machine. It does not install keys or change SSH config.
+## Reproduce
 
-README images are exported by the actual Textual app with example metadata and
-true-color rendering. The 100×30 main/route views and a 70×20 compact view were
-rendered for inspection. Generate them with `python scripts/capture_demo.py`.
-No SSH connection or real server data is used in those images.
+```sh
+cargo test --locked
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo build --release --locked
+python scripts/check_native_compat.py --binary target/release/ssh-sessions
+python scripts/check_native_install.py --binary target/release/ssh-sessions
+```
 
-Cloudflare configuration, a second physical laptop, key enrollment/authorization
-tracking and agent-managed sessions are not tested or implemented here. Existing
-SSH configuration is delegated to OpenSSH. See [the backlog](backlog.md).
+Append `.exe` to binary paths on Windows. Python is a developer-only migration
+oracle here, not an app dependency. Git tests use temporary local repositories.
+In the owner's agent workspace, every Git command and tests that invoke it must
+run outside the sandbox.
 
-## SSH import and easier new-tab keys (0.2)
+Generate images with:
 
-The expanded suite has 44 tests. Import checks cover static Include files,
-first-value and user/system precedence, wildcard exclusions, cycle detection,
-refusal to execute Match commands, stale previews, existing-machine route
-preservation, repeat imports and custom config paths remaining device-local.
-A generated static config is also compared with the installed OpenSSH client's
-output. That isolated fixture has no executable directives; production import
-never invokes SSH for discovery. Keyboard tests exercise I, Esc, Space, A and
-Enter through the actual import screen.
+```sh
+cargo run --locked --example capture --features screenshots
+```
 
-The installed Terminal shortcut passed a real Ctrl+N -> picker -> SSH -> logout
-flow and Ctrl+Alt+N -> local PowerShell check in one small owned window. Existing
-tab identities were preserved. The importer previewed the owner's local config;
-one already-authorized alias was imported into a temporary catalog and successfully
-ran a harmless SSH command. The real config hash and saved machine list stayed
-unchanged. Cloudflare proxy preservation was checked in argv construction, not
-with a live Cloudflare login.
+The exporter renders the real Ratatui screen buffer using demonstration data.
+The PNG inspection uses a headless browser, without activating desktop windows.
+The SVG files contain no live hosts, local account paths or credentials.
 
-The import screenshot uses `examples/ssh_config`; its selected-row checkmark,
-metadata columns and keyboard instructions were rendered and inspected.
+## Limits and previous evidence
 
-## Local terminal and numbered favorites (0.3)
+Native SSH handoff on a physical macOS desktop remains unqualified. So do every
+Cloudflare helper, VPN state, custom shell profile and terminal emulator. The
+Windows Terminal shortcut/focus behavior belongs to Terminal Workspace and has
+its own qualification; it is not established by this leaf's PTY tests.
 
-The expanded suite passed 62 tests locally. New checks cover an empty catalog's
-visible local row, number-then-Enter selection, preserving digits in forms/search,
-modal isolation, device route choice, missing/empty favorites refusing adjacent
-connections, changed catalog review, and local-shell handoff back to the picker.
-Favorite storage checks cover device isolation, moving/replacing/clearing slots,
-stale-edit rejection, malformed-file preservation, read-only CLI listing and
-first-install defaults preserving later edits. A 70×18 layout check preserves
-space for the connection list; 100×30 and 70×20 screenshots were rendered and
-visually inspected with example data only.
-
-The installed private catalog was exercised through the real Textual picker in
-headless mode for slots 1, 2 and 3. The two remote choices resolved to the expected
-machines and selected routes; argv construction retained the imported alias and
-port. The local command ran PowerShell Core. These checks did not log into the
-second server or move visible windows. They establish selection and command
-construction, not that every remote server is currently reachable. The original
-SSH config, existing Terminal tabs and running forward were preserved.
-
-## Groups, tags and clearer screens (0.4)
-
-The full suite passed 79 tests locally. Organization checks cover nested paths,
-descendant counts, tag/group search, bulk moves and tag edits, parent renames,
-stale-edit refusal, import into groups, catalog version compatibility and a
-1,000-machine fixture. Keyboard tests use the real Textual app for G, Space,
-Ctrl+A, M, T, group rename, clearing selection and favorites outside a group.
-Two isolated Git clones verify that groups/tags travel while each device keeps
-its own route choice and numbered favorites.
-
-A separate headless smoke check rendered all 1,000 machines, searched to 50
-matching a group/tag pair, selected those rows and moved them with the actual
-M form. The saved catalog and confirmation count matched. This was a functional
-check, not a cold-start or cross-platform performance benchmark.
-
-The main, route, import and group screens were rendered at 100×30, plus a 70×20
-compact main screen. The 70×18 keyboard/layout regression also passes. Wide
-tables scroll horizontally in small terminals; the selected destination remains
-in the details below. SVGs now embed Fira Code and its license so image rendering
-does not depend on external font requests. Every screenshot uses example data.
-
-Copy was reviewed across the picker, forms, import, route/favorite/group menus,
-sync messages, CLI help and documentation. Main screens describe available
-actions; data/schema and authentication behavior remain in the reference docs.
-No visible desktop window was activated for this update. At version 0.4, Linux
-and macOS were unverified; version 0.5 CI results are recorded above. See the [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).
+Version 0.5's Python implementation previously passed real Windows remote login
+and returned to the picker in a small owned Terminal window. That observation
+does not automatically qualify the rewritten native runtime. The legacy suite
+remains available as a reference and is run by a separate CI workflow.

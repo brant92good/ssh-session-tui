@@ -57,10 +57,14 @@ fn save(picker: &Picker, output: &Path, title: &str) -> Result<()> {
                 "<rect x=\"{px}\" y=\"{py}\" width=\"{run_width}\" height=\"19\" fill=\"{}\"/>",
                 color(cell.bg, "#0f172a")
             )?;
-            if !text.trim().is_empty() {
+            for (offset, character) in text.chars().enumerate() {
+                if character.is_whitespace() {
+                    continue;
+                }
+                let text_x = px + offset as u32 * 9;
                 write!(
                     svg,
-                    "<text x=\"{px}\" y=\"{}\" fill=\"{}\" font-weight=\"{}\" textLength=\"{run_width}\" lengthAdjust=\"spacingAndGlyphs\">{}</text>",
+                    "<text x=\"{text_x}\" y=\"{}\" fill=\"{}\" font-weight=\"{}\">{}</text>",
                     py + 15,
                     color(cell.fg, "#e2e8f0"),
                     if cell.modifier.contains(Modifier::BOLD) {
@@ -68,7 +72,7 @@ fn save(picker: &Picker, output: &Path, title: &str) -> Result<()> {
                     } else {
                         400
                     },
-                    xml(&text)
+                    xml(&character.to_string())
                 )?;
             }
         }
