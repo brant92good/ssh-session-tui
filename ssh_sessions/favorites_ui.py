@@ -23,7 +23,7 @@ class FavoriteSlots(ModalScreen):
         with Vertical(classes='dialog favorites-dialog'):
             yield Label('Numbered favorites', classes='heading')
             yield Static('Pin ' + target_name(self.target, self.machines) +
-                         '. Choose a slot; Enter saves here and replaces its current favorite.', markup=False)
+                         '. Choose a slot; Enter replaces its current favorite.', markup=False)
             yield DataTable(id='favorite-slots', cursor_type='row', zebra_stripes=True)
             yield Static('1–9 or arrows: choose slot · Enter: save · D: clear slot · Esc: cancel', markup=False)
 

@@ -19,6 +19,12 @@ These items are intentionally not implemented as part of that first version.
 - **Catalog interoperability with Port Forward TUI and Herdr.** Decide a shared
   stable machine identity and route mapping before merging their catalogs or
   changing the existing paired workspace's return-shortcut context.
+- **Linux and macOS qualification.** Validate packaged installation, SSH/local
+  shell terminal handoff, locks and import on real platforms, then publish their
+  setup paths. The cross-project [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md)
+  keeps global/tab shortcuts in the terminal integration layer. Nested groups,
+  tags and bulk organization are implemented in 0.4; inherited SSH settings
+  remain outside the current grouping feature.
 - **Further Termius-like features.** SFTP, snippets, agent automation, jump-host
   authoring, background sync, key enrollment and a new SSH implementation are
   outside the initial picker. No automatic fallback routes are planned without

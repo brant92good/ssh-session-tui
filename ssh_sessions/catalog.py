@@ -18,7 +18,7 @@ class CatalogError(ValueError):
 
 def fields(value, allowed, required=None):
     if not isinstance(value, dict) or set(value) - set(allowed) or set(required or allowed) - set(value):
-        raise CatalogError('Unexpected or missing catalog fields. Only machine names, users and routes are supported; credentials do not belong here.')
+        raise CatalogError('Unexpected or missing catalog fields. Check the catalog format in docs/design.md.')
 
 
 def label(value, name='Name'):
@@ -31,6 +31,32 @@ def identifier(value):
     if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', value):
         raise CatalogError('IDs must contain letters, numbers, underscores or hyphens.')
     return value
+
+
+def group_path(value):
+    if not isinstance(value, str) or len(value) > 160:
+        raise CatalogError('Group names must be at most 160 characters.')
+    if not value.strip():
+        return ''
+    parts = value.strip().split('/')
+    if len(parts) > 8 or any(not part.strip() or part.strip() in ('.', '..') for part in parts):
+        raise CatalogError('Use up to 8 group names separated by /, such as Work/Production.')
+    return '/'.join(label(part, 'Group name') for part in parts)
+
+
+def parse_tags(value):
+    if isinstance(value, str):
+        value = [tag.strip() for tag in value.split(',') if tag.strip()]
+    if not isinstance(value, (list, tuple)) or len(value) > 30:
+        raise CatalogError('Use up to 30 tags, separated by commas.')
+    tags = []
+    for tag in value:
+        tag = label(tag, 'Tag')
+        if len(tag) > 40 or ',' in tag:
+            raise CatalogError('Each tag must be at most 40 characters, without commas.')
+        if tag.casefold() not in {existing.casefold() for existing in tags}:
+            tags.append(tag)
+    return tuple(tags)
 
 
 def address(value):
@@ -78,16 +104,19 @@ class Machine:
     name: str
     user: str
     routes: tuple[Route, ...]
+    group: str = ''
+    tags: tuple[str, ...] = ()
 
     @classmethod
     def parse(cls, data):
-        fields(data, ('id', 'name', 'user', 'routes'))
+        fields(data, ('id', 'name', 'user', 'routes', 'group', 'tags'), ('id', 'name', 'user', 'routes'))
         if not isinstance(data['routes'], list) or not 1 <= len(data['routes']) <= 30:
             raise CatalogError('Each machine needs 1–30 routes.')
         routes = tuple(Route.parse(route) for route in data['routes'])
         if len({r.id for r in routes}) != len(routes):
             raise CatalogError('Route IDs must be unique within a machine.')
-        return cls(identifier(data['id']), label(data['name']), login(data['user']), routes)
+        return cls(identifier(data['id']), label(data['name']), login(data['user']), routes,
+                   group_path(data.get('group', '')), parse_tags(data.get('tags', [])))
 
     def route(self, route_id):
         return next((r for r in self.routes if r.id == route_id), None)
@@ -101,8 +130,10 @@ def decode(raw):
     except (ValueError, UnicodeError) as error:
         raise CatalogError('Catalog is not valid UTF-8 JSON; the file was left unchanged.') from error
     fields(data, ('version', 'machines'))
-    if type(data['version']) is not int or data['version'] != 1 or not isinstance(data['machines'], list) or len(data['machines']) > 1000:
-        raise CatalogError('Expected catalog version 1 and at most 1,000 machines.')
+    if type(data['version']) is not int or data['version'] not in (1, 2) or not isinstance(data['machines'], list) or len(data['machines']) > 1000:
+        raise CatalogError('Expected catalog version 1 or 2 and at most 1,000 machines.')
+    if data['version'] == 1 and any(isinstance(m, dict) and ('group' in m or 'tags' in m) for m in data['machines']):
+        raise CatalogError('Groups and tags require catalog version 2 (SSH Sessions 0.4 or newer).')
     machines = tuple(Machine.parse(machine) for machine in data['machines'])
     if len({m.id for m in machines}) != len(machines):
         raise CatalogError('Machine IDs must be unique.')
@@ -111,11 +142,16 @@ def decode(raw):
 
 def encode(machines):
     rows = [asdict(m) for m in machines]
+    version = 2 if any(m['group'] or m['tags'] for m in rows) else 1
     for machine in rows:
+        if not machine['group']:
+            del machine['group']
+        if not machine['tags']:
+            del machine['tags']
         for route in machine['routes']:
             if route['ssh_alias'] is None:
                 del route['ssh_alias']
-    raw = (json.dumps({'version': 1, 'machines': rows}, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    raw = (json.dumps({'version': version, 'machines': rows}, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
     decode(raw)
     return raw
 

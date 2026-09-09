@@ -6,6 +6,7 @@ import unittest
 
 from ssh_sessions.catalog import Catalog, CatalogError, decode, encode
 from ssh_sessions.sync import GitSync
+from ssh_sessions.favorites import Favorites, LOCAL
 from test_catalog import sample
 
 
@@ -68,6 +69,26 @@ class SyncTests(unittest.TestCase):
         with self.assertRaisesRegex(CatalogError, 'local changes'):
             GitSync(self.catalog).run('pull')
         self.assertEqual(self.catalog.load().machines[0].name, 'Local draft')
+
+    def test_groups_and_tags_sync_while_favorites_and_routes_stay_device_specific(self):
+        machine = sample()
+        self.catalog.choose(machine, 'lan')
+        Favorites(self.catalog).assign(1, machine.id)
+        other = self.root / 'device B'
+        git(self.root, '-c', 'core.autocrlf=false', 'clone', str(self.remote), str(other))
+        self.identity(other)
+        catalog_b = Catalog(other / 'catalog.json', self.root / 'preferences B')
+        catalog_b.choose(machine, 'vpn')
+        Favorites(catalog_b).assign(2, LOCAL)
+        grouped = replace(machine, group='Work/Production', tags=('linux', 'gpu'))
+        self.catalog.save((grouped,), self.catalog.load().revision)
+        GitSync(self.catalog).run('publish')
+        GitSync(catalog_b).run('pull')
+        self.assertEqual(catalog_b.load().machines, (grouped,))
+        self.assertEqual(catalog_b.preferred(grouped).id, 'vpn')
+        self.assertEqual(self.catalog.preferred(grouped).id, 'lan')
+        self.assertEqual(Favorites(catalog_b).load().slots, {'2': LOCAL})
+        self.assertEqual(Favorites(self.catalog).load().slots, {'1': machine.id})
 
     def test_publish_refuses_unrelated_unpublished_commits(self):
         (self.a / 'README.md').write_text('Unpublished work')

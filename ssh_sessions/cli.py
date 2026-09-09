@@ -40,7 +40,7 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
             notice = f'{"Local shell" if choice.kind == "local" else "SSH session"} ended (exit {code}). Choose a machine to connect again.'
             if choice.kind == 'connect' and code == 255:
                 failed = choice.machine.id
-                notice = 'SSH exited with code 255. Check your network and local SSH authentication. No alternative route was started.'
+                notice = 'SSH connection failed (exit 255). Check the SSH error above or choose another route.'
                 if sys.stdin.isatty():
                     input('SSH failed. Read the message above, then press Enter to return to the picker and choose a route. ')
         except KeyboardInterrupt:
@@ -50,40 +50,76 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Choose an SSH machine and a route for this device. Private keys remain with your existing SSH client.')
+    parser = argparse.ArgumentParser(description='Browse, organize and connect to your SSH machines.')
     parser.add_argument('--catalog', type=Path, default=default_directory() / 'catalog.json', help='Shared metadata JSON; point this at a file in your private Git repo')
     parser.add_argument('--state-dir', type=Path, default=default_directory() / 'device', help='Device-only preferences; keep outside your shared repository')
     commands = parser.add_subparsers(dest='command')
-    listing = commands.add_parser('list', help='List machines and this device\'s selected routes without connecting')
+    listing = commands.add_parser('list', help='List machines and this device\'s selected routes')
     listing.add_argument('--json', action='store_true')
+    list_group = listing.add_mutually_exclusive_group()
+    list_group.add_argument('--group', help='Group path, including its subgroups')
+    list_group.add_argument('--ungrouped', action='store_const', const='', dest='group', help='Show machines without a group')
+    listing.add_argument('--tag', help='Tag to match')
+    listing.add_argument('--search', default='', help='Search words, group:PATH or tag:NAME')
     commands.add_parser('init', help='Create an empty catalog if missing; preserve an existing file')
-    doctor = commands.add_parser('doctor', help='Check local setup without opening SSH or changing files')
+    doctor = commands.add_parser('doctor', help='Check local setup')
     doctor.add_argument('--json', action='store_true')
-    sync = commands.add_parser('sync', help='Explicitly pull or publish the tracked catalog through its existing Git upstream')
+    sync = commands.add_parser('sync', help='Pull or publish the catalog through Git')
     sync.add_argument('action', choices=('pull', 'publish'))
     sync.add_argument('--json', action='store_true')
-    command = commands.add_parser('command', help='Print the selected SSH argv without starting SSH')
+    command = commands.add_parser('command', help='Print the selected SSH command')
     command.add_argument('machine', help='Machine ID or exact name')
     command.add_argument('--route', help='Route ID or exact name; required when this device has no preference')
     command.add_argument('--json', action='store_true')
     importing = commands.add_parser('import-ssh', help='Preview local SSH hosts; import only with --apply and --host NAME or --all')
-    importing.add_argument('--config', type=Path, help='Read a custom SSH config; its path stays on this device')
+    importing.add_argument('--config', type=Path, help='Read a custom SSH config file')
     importing.add_argument('--host', action='append', default=[], help='Alias to import; repeat for multiple hosts')
     importing.add_argument('--all', action='store_true', help='Select all entries without unresolved metadata')
-    importing.add_argument('--apply', action='store_true', help='Save selected metadata after review; does not connect or publish')
+    importing.add_argument('--apply', action='store_true', help='Import selected hosts')
+    importing.add_argument('--group', default='', help='Group for newly imported machines')
     importing.add_argument('--json', action='store_true')
-    favorites = commands.add_parser('favorites', help='List or edit device-local numbered favorites; never connects')
+    favorites = commands.add_parser('favorites', help='List or edit numbered favorites')
     favorites.add_argument('action', choices=('list', 'set', 'remove'), nargs='?', default='list')
     favorites.add_argument('slot', nargs='?', help='Favorite number 1–9 for set/remove')
     favorite_target = favorites.add_mutually_exclusive_group()
     favorite_target.add_argument('--machine', help='Exact machine ID from list --json')
     favorite_target.add_argument('--local', action='store_true', help='Use local PowerShell')
     favorites.add_argument('--json', action='store_true')
+    grouping = commands.add_parser('groups', help='List groups or rename a group and its subgroups')
+    grouping.add_argument('action', choices=('list', 'rename'), nargs='?', default='list')
+    grouping.add_argument('old', nargs='?')
+    grouping.add_argument('new', nargs='?')
+    grouping.add_argument('--json', action='store_true')
+    organize = commands.add_parser('organize', help='Move machines to a group or add/remove tags')
+    organize.add_argument('--machine', action='append', required=True, help='Machine ID; repeat to select several')
+    edit_group = organize.add_mutually_exclusive_group()
+    edit_group.add_argument('--group', help='Destination group')
+    edit_group.add_argument('--ungrouped', action='store_const', const='', dest='group', help='Remove group membership')
+    organize.add_argument('--add-tag', action='append', default=[])
+    organize.add_argument('--remove-tag', action='append', default=[])
+    organize.add_argument('--json', action='store_true')
     options = parser.parse_args(argv)
     structured = getattr(options, 'json', False)
     try:
         catalog = Catalog(options.catalog, options.state_dir)
         snapshot = catalog.load()
+        if options.command in ('groups', 'organize'):
+            from .organization import edit_many, groups, rename_group
+            if options.command == 'organize':
+                if options.group is None and not options.add_tag and not options.remove_tag:
+                    raise CatalogError('Specify --group, --add-tag or --remove-tag.')
+                snapshot = edit_many(catalog, options.machine, snapshot.revision, group=options.group,
+                                     add_tags=options.add_tag, remove_tags=options.remove_tag)
+            elif options.action == 'rename':
+                if options.old is None or options.new is None:
+                    raise CatalogError('Use groups rename OLD_PATH NEW_PATH.')
+                snapshot = rename_group(catalog, options.old, options.new, snapshot.revision)
+            elif options.old is not None or options.new is not None:
+                raise CatalogError('Use groups list without path arguments.')
+            rows = [{'path': path, 'machines': count} for path, count in groups(snapshot.machines).items()]
+            result = {'ok': True, 'groups': rows, 'ungrouped': sum(not m.group for m in snapshot.machines)}
+            print(json.dumps(result) if structured else '\n'.join(f"{r['path']} ({r['machines']})" for r in rows) or 'No groups yet. Use organize --group to create one.')
+            return 0
         if options.command == 'favorites':
             from .favorites import LOCAL, Favorites, target_name
             store = Favorites(catalog)
@@ -112,11 +148,11 @@ def main(argv=None):
             if options.apply:
                 selected = [e.alias for e in scan.entries if import_status(snapshot.machines, e) in
                     ('Ready to import', 'Already imported (select to bind this device)')] if options.all else options.host
-                result.update(import_selected(catalog, scan, selected, snapshot.revision), applied=True)
+                result.update(import_selected(catalog, scan, selected, snapshot.revision, group=options.group), applied=True)
             print(json.dumps(result, ensure_ascii=True) if structured else '\n'.join(
                 [f"{r['alias']} | {r['user']}@{r['host']}:{r['port']} | {r['status']}" for r in rows] +
-                (['Imported selected hosts. SSH config and keys were not changed.'] if options.apply else
-                 ['Preview only. Use --apply with --host NAME or --all to import; nothing was saved or connected.'])))
+                (['Hosts imported.'] if options.apply else
+                 ['Use --apply with --host NAME or --all to import.'])))
             return 0
         if options.command == 'doctor':
             checks = {'catalog_valid': True, 'machine_count': len(snapshot.machines),
@@ -140,9 +176,10 @@ def main(argv=None):
             print(json.dumps({'ok': True, 'message': message}) if structured else message)
             return 0
         if options.command == 'list':
+            from .organization import filtered
             rows = []
             preferences = catalog.preferences()
-            for machine in snapshot.machines:
+            for machine in filtered(snapshot.machines, options.search, options.group, options.tag):
                 route = catalog.preferred(machine, preferences)
                 rows.append({**asdict(machine), 'selected_route': route.id if route else None})
             if structured:

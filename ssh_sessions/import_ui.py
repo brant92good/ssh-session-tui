@@ -11,16 +11,17 @@ from .ssh_import import default_config, import_selected, import_status, scan_ssh
 class ImportSSH(ModalScreen):
     BINDINGS = [('escape', 'cancel', 'Cancel'), ('space', 'toggle', 'Select'), ('a', 'all', 'All / none')]
 
-    def __init__(self, catalog):
+    def __init__(self, catalog, group=''):
         super().__init__()
         self.catalog = catalog
+        self.group = group
         self.selected = set()
         self.scan = None
 
     def compose(self):
         with Vertical(classes='dialog import-dialog'):
             yield Label('Import from local SSH settings', classes='heading')
-            yield Static('Preview names, addresses and usernames. Keys and proxy commands stay in local SSH config.', markup=False)
+            yield Static('Add new machines to ' + (self.group or 'Ungrouped') + '.', markup=False)
             yield Input(str(default_config()), id='config-path', placeholder='SSH config path; Enter reloads')
             yield DataTable(id='import-hosts', cursor_type='row', zebra_stripes=True)
             yield Static('', id='import-detail', markup=False)
@@ -43,7 +44,7 @@ class ImportSSH(ModalScreen):
                 table.add_row(Text('[ ]' if self.allowed(entry) else ' ! '), Text(entry.alias), Text(entry.host),
                               Text(entry.user), str(entry.port), key=entry.alias)
             self.query_one('#import-detail', Static).update('No named Host entries found. Wildcards are patterns, not machines.' if not self.scan.entries
-                else 'No changes until you press Enter. Import does not connect or publish.')
+                else 'Select the hosts to import.')
             table.focus()
         except (OSError, ValueError) as error:
             self.query_one('#import-detail', Static).update(str(error))
@@ -86,9 +87,9 @@ class ImportSSH(ModalScreen):
         entry = self.current()
         chosen = self.selected or ({entry.alias} if entry and self.allowed(entry) else set())
         try:
-            result = import_selected(self.catalog, self.scan, chosen, self.snapshot.revision)
+            result = import_selected(self.catalog, self.scan, chosen, self.snapshot.revision, group=self.group)
             self.dismiss(f"Imported {result['added_machines']} machines and {result['added_routes']} routes; "
-                         f"bound {result['bound_existing']} existing routes. Nothing connected or published.")
+                         f"updated {result['bound_existing']} existing bindings.")
         except (OSError, ValueError) as error:
             self.query_one('#import-detail', Static).update(str(error))
 

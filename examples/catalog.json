@@ -1,10 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "machines": [
     {
       "id": "workstation",
       "name": "Workstation",
       "user": "developer",
+      "group": "Work/Dev",
+      "tags": ["linux", "gpu"],
       "routes": [
         {"id": "lan", "name": "Home LAN", "host": "192.0.2.10", "port": 22},
         {"id": "vpn", "name": "Private network", "host": "workstation.example.test", "port": 22}
@@ -14,12 +16,16 @@
       "id": "build",
       "name": "Build server",
       "user": "builder",
+      "group": "Work/Build",
+      "tags": ["ci"],
       "routes": [{"id": "direct", "name": "Office network", "host": "build.example.test", "port": 2222}]
     },
     {
       "id": "demo",
       "name": "Demo VM",
       "user": "dev",
+      "group": "Lab",
+      "tags": ["test"],
       "routes": [{"id": "lan", "name": "Lab LAN", "host": "192.0.2.30", "port": 22}]
     }
   ]

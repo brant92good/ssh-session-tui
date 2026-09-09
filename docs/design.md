@@ -17,10 +17,34 @@ Your private settings repo
 ```
 
 Only `version` and `machines` appear at the catalog root. Each machine has
-`id`, `name`, `user`, and `routes`. Each route has `id`, `name`, `host`, and
+`id`, `name`, `user`, and `routes`, plus optional `group` and `tags`. Each route has `id`, `name`, `host`, and
 `port`, and optionally an imported `ssh_alias` name. See [the example](../examples/catalog.json). IDs remain stable when a
 display name changes. Unknown fields, invalid destinations, duplicate IDs and
 malformed files are rejected; they are not silently repaired or overwritten.
+
+Groups use slash-separated paths such as `Work/Production`. A machine has one
+group and any number of tags up to 30. Group paths allow up to eight levels and
+160 characters; individual tags allow 40 characters. Group membership is
+case-insensitive. Parent groups and counts are derived from their descendants;
+there is no separate empty-group record. A group disappears when its last
+machine moves away. Renaming a parent changes all descendant paths atomically.
+Group membership affects browsing only; routes and SSH options remain per machine.
+Nested groups follow a familiar workflow in [Termius](https://termius.com/api-docs/),
+whose groups also support inherited connection settings; this app does not add
+that inheritance.
+
+Catalog version 2 adds groups and tags. Version 1 remains readable, and catalogs
+without organization metadata keep the version 1 shape. Saving a group or tag
+requires SSH Sessions 0.4+ on every device reading that catalog. Older clients
+reject version 2 rather than overwrite fields they do not understand.
+
+Bulk move/tag commands share the same revision check and atomic save as single
+machine edits. They preserve machine IDs, routes and device favorites. Space
+selects individual rows; Ctrl+A selects the shown machines. Starting a search
+or changing the group clears selection so an edit does not affect hidden rows.
+Favorites remain global to the catalog and can select a machine outside the
+current group. Search combines words with AND; `tag:gpu` matches an exact tag,
+and `group:Work` includes Work and its descendants.
 
 Device preferences map a machine ID to a route ID in local app data. The file
 name is derived from the local catalog path. This keeps separate catalogs from

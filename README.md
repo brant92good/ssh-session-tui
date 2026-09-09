@@ -1,17 +1,15 @@
 # SSH Sessions
 
-Choose a server with your keyboard. Use its LAN address on one computer and
-its VPN address on another, while keeping private keys with each computer's
-existing SSH client.
+A keyboard SSH manager with numbered favorites, machine groups and a local terminal.
+Organize servers by project or location, find a machine, and press Enter to connect.
 
-![SSH machine picker](docs/screenshots/picker.svg)
+![SSH Sessions with grouped example machines](docs/screenshots/picker.svg)
 
-*The actual picker with example metadata. No connections were opened for this image.*
+*Example machines and favorites.*
 
-## Try it
+## Install
 
-You need Python 3.12+ and an installed OpenSSH client. Windows is the tested
-target; Terminal integration is optional.
+You need Python 3.12+ and OpenSSH. These commands are for PowerShell on Windows:
 
 ```powershell
 git clone https://github.com/brant92good/ssh-session-tui.git
@@ -21,173 +19,148 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe app.py
 ```
 
-Press **A** to add a machine: give it a name, remote username and address.
-Then press **Enter** to connect. SSH uses your existing local keys, key agent
-and configuration. The picker does not install keys or change SSH config.
-After the session ends, it returns to the list.
+Press **A** to add a machine, or **I** to import hosts from your SSH config.
+Select a row and press **Enter**. SSH uses your existing login settings.
+After logout, you return to the list. **Local terminal** opens a shell on this
+computer; `exit` returns to the picker.
 
-**Local terminal** is always in the list, including on first use with no servers.
-Select it and press Enter for local PowerShell. `exit` returns to the picker.
+Windows is tested. Linux/macOS validation is planned; see the
+[platform assessment](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).
 
-## Keep common connections one number away
+## Numbered favorites
 
-Highlight a machine or **Local terminal**, press **F**, choose a slot **1–9**,
-then **Enter** to save. The numbered favorites bar stays visible above the list.
-Press a favorite's **number, then Enter** to open it. The number selects and
-shows the destination first; it does not connect immediately. In search boxes
-and forms, number keys type normally.
+Highlight a machine or Local terminal, press **F**, choose a slot **1–9**, then
+**Enter** to save. Press its **number, then Enter** to open it from any group.
+The number selects the destination first. Digits in search and forms type normally.
 
-Favorites use stable machine IDs and this device's chosen route. Renaming or
-reordering machines does not retarget a number. A missing machine or empty slot
-stops the shortcut instead of connecting the adjacent row. Use F again to move
-or replace a favorite; D in that menu clears the highlighted slot. Each item can
-occupy one slot. Favorites stay on this device; catalog Pull/Publish does not
-sync them. A personal setup can seed defaults for a new laptop without replacing
-later keyboard edits.
+F also lets you move or replace a favorite. **D** in that menu clears a slot.
+Each item occupies one slot. Favorites are saved per device and use that device's
+selected route. Your personal setup can seed an initial layout on a new laptop.
 
-No host is required during installation. No account or Git repository is
-needed to use the picker locally. Run `app.py doctor` for local setup checks.
+## Organize a large machine list
 
-## Import the machines you already use
+**G** opens the group browser. Choose a group and press Enter to show its machines
+and subgroups. Group counts include all descendants. **Esc** returns to All machines.
 
-Press **I** to preview your local `~/.ssh/config` (on Windows,
-`%USERPROFILE%\.ssh\config`). Use **Space** to select hosts, **A** for all/none,
-then **Enter** to import. Enter with no selection imports the highlighted host.
-Esc cancels. Tab/Shift+Tab lets you enter a different config path; Enter reloads it.
+![Group browser](docs/screenshots/groups.svg)
 
-![Review local SSH hosts before importing](docs/screenshots/import.svg)
+*Groups and counts from the example catalog.*
 
-*Actual import screen using the included example SSH config. No connections are opened.*
+To create a group, highlight a machine and press **M**. Enter a path such as
+`Work/Production` or `Lab/GPU`, then **Ctrl+S**. A slash creates a nested group.
+Leave the field blank to move a machine to Ungrouped. Groups exist while they
+contain machines or subgroups.
 
-Import copies names, addresses, usernames, ports and the SSH alias name. It keeps
-key choices, proxy commands and custom config paths on this device. Connecting
-through an imported route still uses its local alias, so existing Cloudflare,
-jump-host and key settings remain available to OpenSSH.
+For a batch, mark rows with **Space**, or press **Ctrl+A** to select all shown.
+Then **M** moves the selection. **T** adds or removes comma-separated tags across
+those machines. The selected count is shown above the list. Starting a search
+or changing groups clears the selection. Group renaming is **G → E** and includes
+its subgroups. To merge groups, select their machines and move them to the same path.
 
-Existing machines keep their names and routes. An alias for an already-saved
-address/user/port adds a route while preserving the previous device choice.
-Re-importing the same alias does not duplicate it. Changed imported values are
-flagged for review instead of overwriting your catalog. Import does not connect,
-publish to Git, or edit SSH settings.
+Press **/** to search names, addresses, usernames, group paths and tags. Combine
+words or use `tag:gpu`, `group:Work` or `group:Work tag:linux`. Quotes support
+spaces, such as `tag:"deep learning"`. Search applies within the current group.
 
-Named `Host` entries, wildcard defaults, negations and static `Include` files
-are supported. System defaults are considered for the normal user config.
-Conditional/dynamic address rules that cannot be resolved without executing
-commands are shown as needing manual setup. The importer never runs `ssh -G`,
-`Match exec`, proxies or key helpers. See [import details](docs/ssh-import.md).
+Groups and tags travel with the shared catalog. Numbered favorites and route
+choices remain per device. Catalogs with groups/tags use version 2: upgrade each
+copy of SSH Sessions to **0.4 or newer** before sharing organized catalogs.
 
-## One server, different routes
+## Import existing SSH hosts
 
-A **machine** is the server you want. A **route** is an address you can reach
-it through. For example, the same workstation can have a Home LAN route and
-a Private network route. Press **R** to add routes and choose one for this
-device. Another device's choice stays unchanged.
+Press **I**, use **Space** to select hosts or **A** for all, then **Enter** to
+import. Enter with no marked rows imports the highlighted host. Tab reaches
+the config path; Enter reloads it. New machines join the current group.
 
-![Choosing a route for this device](docs/screenshots/routes.svg)
+![Import existing SSH hosts](docs/screenshots/import.svg)
 
-*Actual route chooser with example addresses. Enter saves this device's choice.*
+*Example SSH config.*
 
-If there is only one route, Enter uses it. With several routes and no saved
-choice, the app asks first. After an SSH connection failure, it preserves the
-client's error on screen, then offers the route list. Choosing an alternative
-tries it **once**; it does not replace the preferred route or try other routes
-automatically. Esc leaves the connection stopped.
+Import reads named hosts, addresses, usernames and ports, including static
+Include files. Imported routes use the original SSH alias, keeping its proxy,
+jump-host and key settings available to OpenSSH. Existing machine names, groups
+and tags are preserved. Re-importing an alias updates its local config binding;
+changed destination values are flagged for review. See [import details](docs/ssh-import.md).
 
-A route can be an IP, hostname or an existing local SSH alias. A Cloudflare
-hostname alone does not set up Cloudflare Access: any required local helper
-and SSH configuration must already work. Authoring that configuration is
-reserved for a [later design discussion](docs/backlog.md).
+## Use different routes on different computers
+
+A machine can have several named routes: for example, LAN at home and Tailscale
+on a laptop. Press **R** to add routes and choose one for this device. With one
+route, Enter uses it; with several and no selection, the route chooser opens.
+
+![Route chooser](docs/screenshots/routes.svg)
+
+If SSH fails, choose an alternative route to retry once, or Esc to return.
+Trying an alternative leaves the saved route preference unchanged. Cloudflare,
+VPN and jump-host routes use the configuration already installed on that computer.
 
 | Key | Action |
 | --- | --- |
-| Up / Down, Enter | Choose a machine and connect |
-| 1–9, then Enter | Select a numbered favorite and open it |
-| F | Pin the highlighted machine or Local terminal to a number |
-| /, then Enter | Search, then return to the machine list |
-| A / E / D | Add, edit or delete a machine |
-| R | Manage routes and select this device's route |
-| I | Preview and import local SSH settings |
-| S | Open explicit Pull / Publish options |
-| F5 | Reload changes from another tab or editor |
-| F1 | Show every shortcut, including those hidden in a narrow footer |
-| Ctrl+L | Use local PowerShell, then return to the picker |
-| Q | Close the picker |
+| Arrows, Enter | Choose a machine or local terminal and open it |
+| 1–9, Enter / F | Open / edit numbered favorites |
+| G | Browse groups; E in the browser renames a group |
+| Space / Ctrl+A | Select one machine / all shown |
+| M / T | Move selected machines / edit their tags |
+| / / Esc | Search / clear filters and selection |
+| A / E / D | Add / edit / delete a machine |
+| R / I | Routes / SSH import |
+| S | Pull / Publish |
+| F5 / F1 | Reload / keyboard guide |
+| Ctrl+L / Q | Local shell / close picker |
 
-Forms use Tab to move, Ctrl+S to save and Esc to cancel. Invalid fields keep
-their entered values so you can correct them.
+Forms use Tab to move, Ctrl+S to save and Esc to cancel.
 
-## Sync addresses through your own private Git repo
+## Share a catalog through Git
 
-The shared JSON contains only machine names, usernames and named address/port
-routes, plus optional SSH alias names for imported routes. Private keys, passwords and device route preferences are not catalog
-fields. The app does not synchronize credentials or claim to verify key
-authorization. Read the [data boundaries](docs/design.md) before setting up sync.
-
-Choose a catalog file inside your existing private repository. Start with an
-empty file using `init`, then commit it with your normal Git workflow:
+Choose a catalog file in a private Git checkout:
 
 ```powershell
-.\.venv\Scripts\python.exe app.py --catalog C:\MyPrivateSetup\connections\catalog.json init
-# In that private repository, add/commit this file and configure its Git upstream.
-.\.venv\Scripts\python.exe app.py --catalog C:\MyPrivateSetup\connections\catalog.json
+.\.venv\Scripts\python.exe app.py --catalog C:\MySetup\connections\catalog.json init
+# Add and commit that file, and configure the repository's Git upstream.
+.\.venv\Scripts\python.exe app.py --catalog C:\MySetup\connections\catalog.json
 ```
 
-Press **S**, then **P** to Pull or **U** to Publish. Sync is explicit:
+**S → P** pulls the repository with a fast-forward merge. Commit or stash local
+changes first. **S → U** commits and pushes the catalog file. If the branch has
+unpublished changes to other files, publish those with your normal Git workflow.
+Resolve conflicting edits with Git before retrying sync.
 
-- Pull uses a fast-forward Git pull of the containing repo. It refuses local
-  changes and does not install other settings or update submodule working trees.
-- Publish commits only the tracked catalog file. It preserves unrelated staged
-  work and refuses unpublished commits that touch other files or contain invalid
-  catalog snapshots, including changes later reverted.
-- If both devices changed the catalog, resolve the Git conflict explicitly.
-  The app does not discard edits, force-push or silently pick a winner.
+Without `--catalog`, Windows stores the catalog under `%LOCALAPPDATA%\SSHSessions`.
+See [data format and sync behavior](docs/design.md) for file locations and fields.
 
-Git sign-in is handled outside the picker. The app requires an already tracked
-catalog on a branch with an upstream; it does not create GitHub repositories.
-Use a **private** repository for addresses you do not want to publish. Point each
-device at its own checkout. Device choices default to local app data and stay
-outside that checkout.
-
-Without `--catalog`, Windows data lives under `%LOCALAPPDATA%\SSHSessions`.
-An empty first-run catalog is ready for A; it contains no example servers.
-
-## Make it the Windows Terminal new-tab screen
+## Windows Terminal integration
 
 [Terminal Workspace](https://github.com/brant92good/terminal-workspace) includes
-this app as a separate pinned submodule. In that checkout:
+SSH Sessions. From that checkout:
 
 ```powershell
-.\install.ps1 -IntegrationOnly -SessionPicker
-# Optional private catalog:
-.\install.ps1 -IntegrationOnly -SessionPicker -SessionCatalog C:\MyPrivateSetup\connections\catalog.json
+.\install.ps1 -IntegrationOnly -SessionPicker -NewTabShortcut ctrl+n
 ```
 
-The explicit `-SessionPicker` option makes new tabs open this picker and adds
-**Ctrl+Alt+N** for a normal local PowerShell tab. Existing R/P/L Herdr and Ports
-shortcuts keep their behavior. The paired workspace button remains separate.
-For an easier new-tab key, add `-NewTabShortcut ctrl+n`. This is optional because
-Terminal intercepts that key before shells and editors can use it; `none` removes
-the extra binding. Ctrl+Shift+T remains available.
+New tabs open the picker. **Ctrl+N** becomes an additional new-tab shortcut;
+**Ctrl+Alt+N** opens local PowerShell directly. Omit `-NewTabShortcut` to keep your
+current key bindings. Terminal owns these shortcuts, including when a shell or
+editor is running inside the tab.
 
-## Inspect or test
+## Commands for scripts and agents
 
 ```powershell
-.\.venv\Scripts\python.exe app.py list --json
-.\.venv\Scripts\python.exe app.py doctor --json
-.\.venv\Scripts\python.exe app.py command MACHINE_ID --route ROUTE_ID --json
-.\.venv\Scripts\python.exe app.py import-ssh --json
-# After reviewing the preview:
-.\.venv\Scripts\python.exe app.py import-ssh --apply --host YOUR_SSH_ALIAS --json
-.\.venv\Scripts\python.exe app.py favorites list --json
+.\.venv\Scripts\python.exe app.py list --group Work --tag gpu --json
+.\.venv\Scripts\python.exe app.py groups list --json
+.\.venv\Scripts\python.exe app.py organize --machine MACHINE_ID --group Work/Production --add-tag gpu --json
+.\.venv\Scripts\python.exe app.py organize --machine MACHINE_ID --ungrouped --json
+.\.venv\Scripts\python.exe app.py groups rename Work Projects --json
+.\.venv\Scripts\python.exe app.py import-ssh --apply --host SSH_ALIAS --group Lab --json
 .\.venv\Scripts\python.exe app.py favorites set 1 --machine MACHINE_ID --json
 .\.venv\Scripts\python.exe app.py favorites set 2 --local --json
-.\.venv\Scripts\python.exe app.py favorites remove 1 --json
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe app.py command MACHINE_ID --json
+.\.venv\Scripts\python.exe app.py doctor --json
 ```
 
-`list`, `doctor` and `command` do not start SSH. `command` prints argument data
-for inspection; it is not an agent authorization policy. See [AGENTS.md](AGENTS.md)
-for repository work, [verification](docs/verification.md) for checked behavior,
-and [the backlog](docs/backlog.md) for SSH-config management, key status and
-agent-heavy session design. This first release is a picker, not a complete
-Termius replacement.
+Repeat `--machine` for bulk edits. `--add-tag` and `--remove-tag` also repeat.
+`command` prints the SSH argument list for inspection. `list`, `groups`,
+`organize`, `favorites` and `import-ssh` manage catalog data; the interactive
+picker starts sessions. Global `--catalog` and `--state-dir` options come before
+the command.
+
+[Development guide](AGENTS.md) · [Verification](docs/verification.md) ·
+[Backlog](docs/backlog.md) · [MIT license](LICENSE)

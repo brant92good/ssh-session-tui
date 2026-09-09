@@ -1,5 +1,7 @@
 """Render the real picker with example metadata; never opens SSH."""
 import asyncio
+import base64
+from html import escape
 import os
 from pathlib import Path
 import re
@@ -35,6 +37,10 @@ async def main():
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(.3)
             app.save_screenshot('picker.svg', str(output))
+            await pilot.press('g')
+            await pilot.pause(.3)
+            app.save_screenshot('groups.svg', str(output))
+            await pilot.press('escape')
             await pilot.press('r')
             await pilot.pause(.3)
             app.save_screenshot('routes.svg', str(output))
@@ -53,8 +59,23 @@ async def main():
             (ROOT / 'artifacts').mkdir(exist_ok=True)
             compact.save_screenshot('compact.svg', str(ROOT / 'artifacts'))
             await pilot.press('q')
-    for path in (output / 'picker.svg', output / 'routes.svg', output / 'import.svg', ROOT / 'artifacts/compact.svg'):
-        path.write_text(re.sub(r'(?m)^[ \t]+$', '', path.read_text(encoding='utf-8')), encoding='utf-8')
+    for path in (*output.glob('*.svg'), ROOT / 'artifacts/compact.svg'):
+        svg = path.read_text(encoding='utf-8')
+        # Embedded SVG images cannot fetch web fonts. Include the intended cell
+        # font so GitHub and offline previews keep the same layout.
+        fonts = ROOT / 'docs/fonts'
+        for weight, name in [(400, 'Regular'), (700, 'Bold')]:
+            encoded = base64.b64encode((fonts / f'FiraCode-{name}.woff2').read_bytes()).decode('ascii')
+            face = ('@font-face { font-family: "Fira Code"; '
+                    f'src: url("data:font/woff2;base64,{encoded}") format("woff2"); '
+                    f'font-style: normal; font-weight: {weight}; }}')
+            svg = re.sub(r'@font-face\s*\{[^}]*font-weight:\s*' + str(weight) + r';[^}]*\}',
+                         lambda match: face, svg, count=1)
+        license_text = escape((fonts / 'LICENSE').read_text(encoding='utf-8'))
+        svg = svg.replace('<!-- Generated with Rich https://www.textualize.io -->',
+                          '<!-- Generated with Rich https://www.textualize.io -->\n'
+                          f'<metadata>Embedded Fira Code 6.2 font license:\n{license_text}</metadata>')
+        path.write_text(re.sub(r'(?m)^[ \t]+$', '', svg), encoding='utf-8')
     print('Captured example picker and route screens without SSH.')
 
 

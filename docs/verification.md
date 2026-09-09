@@ -85,3 +85,30 @@ port. The local command ran PowerShell Core. These checks did not log into the
 second server or move visible windows. They establish selection and command
 construction, not that every remote server is currently reachable. The original
 SSH config, existing Terminal tabs and running forward were preserved.
+
+## Groups, tags and clearer screens (0.4)
+
+The full suite passed 79 tests locally. Organization checks cover nested paths,
+descendant counts, tag/group search, bulk moves and tag edits, parent renames,
+stale-edit refusal, import into groups, catalog version compatibility and a
+1,000-machine fixture. Keyboard tests use the real Textual app for G, Space,
+Ctrl+A, M, T, group rename, clearing selection and favorites outside a group.
+Two isolated Git clones verify that groups/tags travel while each device keeps
+its own route choice and numbered favorites.
+
+A separate headless smoke check rendered all 1,000 machines, searched to 50
+matching a group/tag pair, selected those rows and moved them with the actual
+M form. The saved catalog and confirmation count matched. This was a functional
+check, not a cold-start or cross-platform performance benchmark.
+
+The main, route, import and group screens were rendered at 100×30, plus a 70×20
+compact main screen. The 70×18 keyboard/layout regression also passes. Wide
+tables scroll horizontally in small terminals; the selected destination remains
+in the details below. SVGs now embed Fira Code and its license so image rendering
+does not depend on external font requests. Every screenshot uses example data.
+
+Copy was reviewed across the picker, forms, import, route/favorite/group menus,
+sync messages, CLI help and documentation. Main screens describe available
+actions; data/schema and authentication behavior remain in the reference docs.
+No visible desktop window was activated for this update. Linux and macOS remain
+unverified; see the [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).

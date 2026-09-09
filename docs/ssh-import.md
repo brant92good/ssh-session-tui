@@ -12,6 +12,10 @@ a custom file. Add the normal global `--catalog PATH` before the subcommand to
 choose the private catalog. Import never runs SSH or Git, so publishing remains
 a separate explicit action.
 
+In the picker, newly imported machines join the group currently open. In scripts,
+`--group Work/Development` sets their group. Existing machines keep their groups
+and tags when an imported alias adds or binds a route.
+
 ## What crosses devices
 
 The catalog stores the alias's display name, address, username and port. An

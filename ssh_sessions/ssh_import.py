@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import shlex
 
-from .catalog import CatalogError, Machine, Route, address, atomic_write, encode, locked, login, new_id, port_number
+from .catalog import CatalogError, Machine, Route, address, atomic_write, encode, group_path, locked, login, new_id, port_number
 
 
 def default_config():
@@ -184,7 +184,8 @@ def read_bindings(catalog):
     return value
 
 
-def import_selected(catalog, scan, aliases, expected):
+def import_selected(catalog, scan, aliases, expected, group=''):
+    group = group_path(group)
     chosen = set(aliases)
     if not chosen or chosen - {e.alias for e in scan.entries}:
         raise CatalogError('Select at least one listed SSH alias.')
@@ -213,7 +214,7 @@ def import_selected(catalog, scan, aliases, expected):
                 index = next((i for i, m in enumerate(machines) if m.user == entry.user
                               and any((r.host, r.port) == (entry.host, entry.port) for r in m.routes)), None)
                 if index is None:
-                    machine = Machine(new_id(), entry.alias, entry.user, (route,))
+                    machine = Machine(new_id(), entry.alias, entry.user, (route,), group=group)
                     machines.append(machine)
                     added += 1
                 else:
@@ -240,5 +241,5 @@ def connection_config(catalog, machine, route):
         return None
     config = Path(read_bindings(catalog).get(machine.id + '/' + route.id, str(default_config())))
     if not config.is_file() or route.ssh_alias not in {e.alias for e in scan_ssh(config).entries}:
-        raise CatalogError(f'This route needs local SSH alias "{route.ssh_alias}". Press I to import/bind it on this device, or choose another route. No connection was started.')
+        raise CatalogError(f'SSH alias "{route.ssh_alias}" is missing on this computer. Press I to import it, or choose another route.')
     return config if config.resolve() != default_config().resolve() else None

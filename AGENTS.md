@@ -2,6 +2,11 @@
 
 Read README.md and docs/design.md. This public leaf owns the machine picker,
 metadata schema, device-only route preferences and explicit catalog sync.
+Groups/tags and atomic bulk edits belong in organization.py; group browsing in
+groups_ui.py. Keep machine IDs/routes stable across moves and renames. Group
+paths and tags require catalog v2; old unorganized catalogs retain v1. Starting
+a search or changing groups clears bulk selection. Favorites are global within
+the catalog, even when a group filter is active.
 Numbered favorites live in a separate device-local file managed by favorites.py.
 They reference stable machine IDs or @local; never infer identity from row order.
 The Local terminal row is always available. Numbers select, Enter opens; preserve

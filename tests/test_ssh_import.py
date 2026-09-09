@@ -91,7 +91,7 @@ class SSHImportTests(unittest.TestCase):
         other = Catalog(self.catalog.path, self.root / 'device-b')
         machine = other.load().machines[0]
         with patch('ssh_sessions.ssh_import.default_config', return_value=self.root / 'missing'):
-            with self.assertRaisesRegex(CatalogError, 'needs local SSH alias'):
+            with self.assertRaisesRegex(CatalogError, 'SSH alias .* is missing'):
                 connection_config(other, machine, machine.routes[0])
         import_selected(other, scan, ['web'], other.load().revision)
         self.assertEqual(connection_config(other, machine, machine.routes[0]), self.config)

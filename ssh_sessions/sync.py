@@ -31,7 +31,7 @@ class GitSync:
             raise CatalogError('Git did not finish. Check Git installation, network and account sign-in.') from error
         if result.returncode not in allowed:
             message = (result.stderr or result.stdout).strip()[-800:]
-            raise CatalogError('Git sync stopped; existing files were not discarded. ' + message)
+            raise CatalogError('Git sync failed: ' + message)
         return result
 
     def run(self, action):
@@ -41,14 +41,14 @@ class GitSync:
             self.catalog.load()  # Reject invalid or credential-bearing metadata.
             if action == 'pull':
                 if self.git('status', '--porcelain').stdout.strip():
-                    raise CatalogError('The private repo has local changes. Publish catalog edits, or commit/stash other work before Pull.')
+                    raise CatalogError('The repository has local changes. Publish catalog edits, or commit/stash other work before Pull.')
                 self.git('-c', 'submodule.recurse=false', 'pull', '--ff-only', self.remote, self.remote_ref)
                 self.catalog.load()
-                return 'Pulled the private repository. Device route choices stayed local.'
+                return 'Repository updated.'
             self.git('fetch', '--quiet', self.remote, self.remote_ref)
             behind, ahead = map(int, self.git('rev-list', '--left-right', '--count', '@{upstream}...HEAD').stdout.split())
             if behind:
-                raise CatalogError('The remote has newer commits. Reconcile local edits with Git and Pull first; no changes were discarded.')
+                raise CatalogError('The remote has newer commits. Reconcile local edits with Git and Pull first.')
             if ahead:
                 # Inspect history, not only the net diff: a reverted file or
                 # credential-bearing catalog would still travel in a push.
@@ -64,4 +64,4 @@ class GitSync:
             # Validate exactly what will be shared, not only the working copy.
             decode(self.git('show', 'HEAD:' + self.relative).stdout.encode('utf-8'))
             self.git('push', self.remote, 'HEAD:' + self.remote_ref)
-            return 'Published the catalog. Private keys and device preferences were not staged.'
+            return 'Catalog published.'
