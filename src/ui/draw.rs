@@ -289,26 +289,55 @@ impl Picker {
                     );
                 }
             }
-            Screen::Groups { selected } => {
+            Screen::Groups {
+                selected,
+                query,
+                editing,
+            } => {
                 let rect = modal(frame, area, "Browse groups", 70, 23);
-                let mut items = vec![ListItem::new("All machines"), ListItem::new("Ungrouped")];
-                items.extend(
-                    organization::groups(&self.snapshot.machines)
-                        .into_iter()
-                        .map(|(path, count)| {
-                            ListItem::new(format!(
-                                "{}{} ({count})",
-                                "  ".repeat(path.matches('/').count()),
-                                path.rsplit('/').next().unwrap_or(&path)
-                            ))
-                        }),
+                let sections =
+                    Layout::vertical([Constraint::Length(2), Constraint::Min(1)]).split(rect);
+                frame.render_widget(
+                    Paragraph::new(format!(
+                        "Find a group: {}{}",
+                        query.text,
+                        if *editing { "▌" } else { "" }
+                    ))
+                    .style(Style::default().fg(if *editing {
+                        ACCENT
+                    } else {
+                        MUTED
+                    })),
+                    sections[0],
                 );
+                let items = self
+                    .group_choices(&query.text)
+                    .into_iter()
+                    .map(|(path, count)| {
+                        let label = match path.as_deref() {
+                            None => "All machines".into(),
+                            Some("") => "Ungrouped".into(),
+                            Some(path) => {
+                                format!("{}{}", "  ".repeat(path.matches('/').count()), path)
+                            }
+                        };
+                        ListItem::new(format!("{label} ({count})"))
+                    })
+                    .collect();
                 menu(
                     frame,
-                    rect,
+                    sections[1],
                     items,
                     *selected,
-                    &format!("{}\nEnter browse  E rename  Esc back", self.notice),
+                    &format!(
+                        "{}\n{}",
+                        self.notice,
+                        if *editing {
+                            "Enter list  Tab list  Esc back"
+                        } else {
+                            "Enter browse  / or Tab search  E rename  Esc back"
+                        }
+                    ),
                 );
             }
             Screen::Import {

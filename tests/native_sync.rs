@@ -140,6 +140,54 @@ fn reverted_unrelated_history_and_repaired_invalid_catalog_are_refused() {
     );
 }
 #[test]
+fn publication_checks_merge_changes_against_each_parent() {
+    for unrelated in [true, false] {
+        let fixture = Fixture::new();
+        git(&fixture.root, &["checkout", "-b", "side"]);
+        git(&fixture.root, &["commit", "--allow-empty", "-m", "Side"]);
+        git(&fixture.root, &["checkout", "main"]);
+        git(&fixture.root, &["commit", "--allow-empty", "-m", "Main"]);
+        git(&fixture.root, &["merge", "--no-ff", "--no-commit", "side"]);
+        if unrelated {
+            fs::write(
+                fixture.root.join("unrelated.txt"),
+                "Merge-only private draft",
+            )
+            .unwrap();
+            git(&fixture.root, &["add", "unrelated.txt"]);
+        } else {
+            let mut snapshot = fixture.catalog.load().unwrap();
+            snapshot.machines[0].name = "Merged catalog".into();
+            fixture
+                .catalog
+                .save(&snapshot.machines, &snapshot.revision)
+                .unwrap();
+            git(&fixture.root, &["add", "catalog.json"]);
+        }
+        git(&fixture.root, &["commit", "-m", "Merge result"]);
+        let result = GitSync::new(&fixture.catalog).unwrap().run("publish");
+        if unrelated {
+            assert!(
+                result.is_err(),
+                "Merge-only non-catalog file must be refused"
+            );
+            assert_eq!(
+                git(&fixture.remote, &["log", "--format=%s", "-1", "main"]).trim(),
+                "Fixture"
+            );
+            assert!(
+                !git(&fixture.remote, &["ls-tree", "-r", "--name-only", "main"])
+                    .contains("unrelated.txt")
+            );
+        } else {
+            result.unwrap();
+            assert!(
+                git(&fixture.remote, &["show", "main:catalog.json"]).contains("Merged catalog")
+            );
+        }
+    }
+}
+#[test]
 fn pull_refuses_dirty_work_and_accepts_clean_fast_forward() {
     let fixture = Fixture::new();
     let other = fixture._temp.path().join("device B");

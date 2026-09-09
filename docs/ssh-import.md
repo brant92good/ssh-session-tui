@@ -6,7 +6,7 @@ selected or saved automatically. With no checked rows, Enter imports only the
 highlighted eligible row. Enter a different path in the path field to preview
 a custom configuration.
 
-For a script or agent, `app.py import-ssh --json` is read-only. To write, supply
+For a script or agent, `ssh-sessions import-ssh --json` is read-only. To write, supply
 `--apply --host ALIAS` (repeat `--host`) or `--apply --all`. `--config PATH` selects
 a custom file. Add the normal global `--catalog PATH` before the subcommand to
 choose the private catalog. Import never runs SSH or Git, so publishing remains

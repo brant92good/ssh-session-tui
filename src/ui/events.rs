@@ -144,47 +144,79 @@ impl Picker {
                     _ => {}
                 }
             }
-            Screen::Groups { mut selected } => {
-                let paths: Vec<_> = organization::groups(&self.snapshot.machines)
-                    .into_keys()
-                    .collect();
+            Screen::Groups {
+                mut selected,
+                mut query,
+                mut editing,
+            } => {
+                let choices = self.group_choices(&query.text);
                 match key.code {
                     KeyCode::Esc => self.screen = Screen::Main,
+                    KeyCode::Tab | KeyCode::BackTab => {
+                        editing = !editing;
+                        self.screen = Screen::Groups {
+                            selected,
+                            query,
+                            editing,
+                        };
+                    }
+                    KeyCode::Char('/') if !editing => {
+                        self.screen = Screen::Groups {
+                            selected,
+                            query,
+                            editing: true,
+                        };
+                    }
                     KeyCode::Up | KeyCode::Down => {
                         selected = if key.code == KeyCode::Up {
                             selected.saturating_sub(1)
                         } else {
-                            (selected + 1).min(paths.len() + 1)
+                            (selected + 1).min(choices.len().saturating_sub(1))
                         };
-                        self.screen = Screen::Groups { selected };
+                        self.screen = Screen::Groups {
+                            selected,
+                            query,
+                            editing,
+                        };
+                    }
+                    KeyCode::Enter if editing => {
+                        self.screen = Screen::Groups {
+                            selected,
+                            query,
+                            editing: false,
+                        };
                     }
                     KeyCode::Enter => {
-                        self.group = if selected == 0 {
-                            None
-                        } else if selected == 1 {
-                            Some(String::new())
-                        } else {
-                            Some(paths.get(selected - 2).context("Reload groups.")?.clone())
-                        };
+                        self.group = choices
+                            .get(selected)
+                            .context("No matching groups. Change the search.")?
+                            .0
+                            .clone();
                         self.marked.clear();
                         self.selected = 0;
                         self.query = Input::default();
                         self.screen = Screen::Main;
                     }
-                    KeyCode::Char('e' | 'E') => {
-                        let old = paths
-                            .get(
-                                selected
-                                    .checked_sub(2)
-                                    .context("Select a named group to rename.")?,
-                            )
-                            .context("Select a group.")?
+                    KeyCode::Char('e' | 'E') if !editing => {
+                        let old = choices
+                            .get(selected)
+                            .and_then(|(path, _)| path.as_ref())
+                            .filter(|p| !p.is_empty())
+                            .context("Select a named group to rename.")?
                             .clone();
                         self.form(
                             "Rename group and subgroups",
                             Edit::Rename(old.clone()),
                             vec![("New group path", old)],
                         );
+                    }
+                    _ if editing => {
+                        query.key(key);
+                        self.screen = Screen::Groups {
+                            selected: 0,
+                            query,
+                            editing,
+                        };
                     }
                     _ => {}
                 }
@@ -379,6 +411,7 @@ impl Picker {
             }
             KeyCode::Char('1'..='9') if !ctrl => {
                 self.selection_valid = false;
+                self.favorites = Favorites::load(&self.catalog)?.0;
                 if let KeyCode::Char(c) = key.code {
                     let target = self
                         .favorites
@@ -399,9 +432,11 @@ impl Picker {
                 }
             }
             KeyCode::Char('f' | 'F') => {
+                let (favorites, revision) = Favorites::load(&self.catalog)?;
+                self.favorites = favorites;
                 self.screen = Screen::Favorite {
                     target: self.current(),
-                    revision: Favorites::load(&self.catalog)?.1,
+                    revision,
                     selected: 0,
                 }
             }
@@ -411,7 +446,13 @@ impl Picker {
                     self.marked.insert(id);
                 }
             }
-            KeyCode::Char('g' | 'G') => self.screen = Screen::Groups { selected: 0 },
+            KeyCode::Char('g' | 'G') => {
+                self.screen = Screen::Groups {
+                    selected: 0,
+                    query: Input::default(),
+                    editing: false,
+                }
+            }
             KeyCode::Char('m' | 'M') => self.form(
                 "Move machines",
                 Edit::Move(self.targets()?),
@@ -481,7 +522,7 @@ impl Picker {
                         scan,
                         selected: 0,
                         marked: BTreeSet::new(),
-                        group: String::new(),
+                        group: self.group.clone().unwrap_or_default(),
                         revision: self.snapshot.revision.clone(),
                     }
                 }

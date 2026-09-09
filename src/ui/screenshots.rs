@@ -136,7 +136,11 @@ pub fn capture(output: &Path) -> Result<()> {
         &output.join("picker.svg"),
         "SSH Sessions native picker with demonstration machines",
     )?;
-    picker.screen = Screen::Groups { selected: 1 };
+    picker.screen = Screen::Groups {
+        selected: 1,
+        query: Input::default(),
+        editing: false,
+    };
     save(
         &picker,
         &output.join("groups.svg"),

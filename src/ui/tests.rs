@@ -1,5 +1,6 @@
 use super::*;
 use ratatui::backend::TestBackend;
+use std::fs;
 fn press(picker: &mut Picker, code: KeyCode) {
     picker.key(KeyEvent::new(code, KeyModifiers::NONE));
 }
@@ -309,4 +310,100 @@ fn all_screens_render_at_normal_narrow_and_tiny_sizes() {
     }
     picker.screen = Screen::Help;
     assert!(render(&picker, 100, 32).contains("Keyboard guide"));
+}
+#[test]
+fn group_search_folds_unicode_and_selects_only_matching_paths() {
+    let (_temp, mut picker) = fixture();
+    picker.snapshot.machines[0].group = "Work/Straße".into();
+    press(&mut picker, KeyCode::Char('g'));
+    press(&mut picker, KeyCode::Tab);
+    type_text(&mut picker, "STRASSE");
+    assert_eq!(
+        picker.group_choices("STRASSE"),
+        vec![(Some("Work/Straße".into()), 1)]
+    );
+    assert!(matches!(
+        picker.screen,
+        Screen::Groups { editing: true, .. }
+    ));
+    assert!(render(&picker, 100, 32).contains("Find a group: STRASSE"));
+    press(&mut picker, KeyCode::Enter);
+    press(&mut picker, KeyCode::Enter);
+    assert_eq!(picker.group.as_deref(), Some("Work/Straße"));
+    assert!(matches!(picker.screen, Screen::Main));
+    press(&mut picker, KeyCode::Char('g'));
+    press(&mut picker, KeyCode::Char('/'));
+    type_text(&mut picker, "missing");
+    press(&mut picker, KeyCode::Enter);
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(picker.screen, Screen::Groups { .. }));
+    assert!(picker.notice.contains("No matching groups"));
+    assert!(picker.choice.is_none());
+}
+#[test]
+fn import_keeps_current_group_and_custom_group_when_config_changes() {
+    let (temp, mut picker) = fixture();
+    let config = temp.path().join("config");
+    fs::write(&config, "Host alpha\n HostName 192.0.2.44\n User dev\n").unwrap();
+    picker.group = Some("Work/Lab".into());
+    picker.form(
+        "Import SSH hosts",
+        Edit::ImportPath,
+        vec![("SSH config file", config.to_string_lossy().into_owned())],
+    );
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(&picker.screen, Screen::Import { group, .. } if group == "Work/Lab"));
+    press(&mut picker, KeyCode::Char('g'));
+    picker.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL));
+    type_text(&mut picker, "Other/Group");
+    picker.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
+    press(&mut picker, KeyCode::Tab);
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(&picker.screen, Screen::Import { group, .. } if group == "Other/Group"));
+    press(&mut picker, KeyCode::Enter);
+    let machine = picker
+        .catalog
+        .load()
+        .unwrap()
+        .machines
+        .into_iter()
+        .find(|m| {
+            m.routes
+                .iter()
+                .any(|r| r.ssh_alias.as_deref() == Some("alpha"))
+        })
+        .unwrap();
+    assert_eq!(machine.group, "Other/Group");
+}
+#[test]
+fn favorite_activation_and_menu_reload_cross_view_changes() {
+    let (_temp, mut picker) = fixture();
+    Favorites::assign(&picker.catalog, "1", Some("school"), None).unwrap();
+    press(&mut picker, KeyCode::Char('1'));
+    assert_eq!(picker.current(), "school");
+    Favorites::assign(&picker.catalog, "1", Some("lab"), None).unwrap();
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(&picker.screen, Screen::Routes { machine, .. } if machine == "school"));
+    press(&mut picker, KeyCode::Esc);
+    press(&mut picker, KeyCode::Char('f'));
+    assert_eq!(
+        picker.favorites.slots.get("1").map(String::as_str),
+        Some("lab")
+    );
+    let actual_revision = Favorites::load(&picker.catalog).unwrap().1;
+    assert!(
+        matches!(&picker.screen, Screen::Favorite { revision, .. } if revision == &actual_revision)
+    );
+    Favorites::assign(&picker.catalog, "1", Some(LOCAL), None).unwrap();
+    press(&mut picker, KeyCode::Enter);
+    assert!(picker.notice.contains("changed in another tab"));
+    assert_eq!(
+        Favorites::load(&picker.catalog)
+            .unwrap()
+            .0
+            .slots
+            .get("1")
+            .map(String::as_str),
+        Some(LOCAL)
+    );
 }

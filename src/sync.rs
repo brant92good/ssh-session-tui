@@ -146,6 +146,30 @@ impl<'a> GitSync<'a> {
         decode(raw.as_bytes())?;
         Ok(())
     }
+    fn validate_unpublished(&self) -> Result<()> {
+        // Inspect every merge parent as well as ordinary commits. Plain git log
+        // omits merge-only changes. NUL fields preserve exact Unicode/newline
+        // filenames, and disabling rename detection checks both affected paths.
+        let changed = self.git(&[
+            "log",
+            "-m",
+            "--format=",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            "@{upstream}..HEAD",
+        ])?;
+        ensure!(
+            changed
+                .split('\0')
+                .all(|name| name.is_empty() || name == self.relative),
+            "Unpublished commits include other files. Review and publish them outside this app first."
+        );
+        for revision in self.git(&["rev-list", "@{upstream}..HEAD"])?.lines() {
+            self.validate_at(revision)?;
+        }
+        Ok(())
+    }
     pub fn run(&self, action: &str) -> Result<String> {
         let _guard = locked(&self.catalog.lock_path)?;
         self.catalog.load()?;
@@ -172,16 +196,7 @@ impl<'a> GitSync<'a> {
             behind.trim() == "0",
             "Remote changes are waiting. Pull before publishing."
         );
-        let changed = self.git(&["log", "--format=", "--name-only", "@{upstream}..HEAD"])?;
-        ensure!(
-            changed
-                .lines()
-                .all(|line| line.is_empty() || line == self.relative),
-            "Unpublished commits include other files. Review and publish them outside this app first."
-        );
-        for revision in self.git(&["rev-list", "@{upstream}..HEAD"])?.lines() {
-            self.validate_at(revision)?;
-        }
+        self.validate_unpublished()?;
         self.git(&["add", "--", &self.relative])?;
         let difference = invoke(
             &self.root,
@@ -202,6 +217,9 @@ impl<'a> GitSync<'a> {
             ])?;
         }
         self.validate_at("HEAD")?;
+        // A repository hook can change history during commit; inspect the exact
+        // history about to be pushed instead of trusting the pre-commit check.
+        self.validate_unpublished()?;
         self.git(&["push", &self.remote, &format!("HEAD:{}", self.remote_ref)])?;
         Ok("Catalog published.".into())
     }

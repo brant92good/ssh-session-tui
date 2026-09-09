@@ -16,6 +16,8 @@ selected route. Your personal setup can seed an initial layout on a new laptop.
 
 **G** opens the group browser. Choose a group and press Enter to show its machines
 and subgroups. Group counts include all descendants. **Esc** returns to All machines.
+Inside the browser, **/** or **Tab** focuses the group search. Type part of a path,
+press **Enter** to return to the filtered list, then **Enter** to browse that group.
 
 ![Group browser](screenshots/groups.svg)
 

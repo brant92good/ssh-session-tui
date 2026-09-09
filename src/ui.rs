@@ -130,6 +130,8 @@ enum Screen {
     },
     Groups {
         selected: usize,
+        query: Input,
+        editing: bool,
     },
     Import {
         scan: Scan,
@@ -223,6 +225,34 @@ impl Picker {
             .map(|m| m.id.clone()),
         );
         rows
+    }
+    fn group_choices(&self, query: &str) -> Vec<(Option<String>, usize)> {
+        let query = crate::text::casefold(query);
+        let mut choices = vec![
+            (None, self.snapshot.machines.len()),
+            (
+                Some(String::new()),
+                self.snapshot
+                    .machines
+                    .iter()
+                    .filter(|m| m.group.is_empty())
+                    .count(),
+            ),
+        ];
+        choices.extend(
+            organization::groups(&self.snapshot.machines)
+                .into_iter()
+                .map(|(path, count)| (Some(path), count)),
+        );
+        choices.retain(|(path, _)| {
+            let label = match path.as_deref() {
+                None => "All machines",
+                Some("") => "Ungrouped",
+                Some(path) => path,
+            };
+            crate::text::casefold(label).contains(&query)
+        });
+        choices
     }
     fn machine(&self, id: &str) -> Result<&Machine> {
         self.snapshot
@@ -425,11 +455,15 @@ impl Picker {
             }
             Edit::ImportPath => {
                 let scan = ssh_import::scan(Some(&ssh_import::expand_home(values[0])))?;
+                let group = match form.return_to.as_ref() {
+                    Screen::Import { group, .. } => group.clone(),
+                    _ => self.group.clone().unwrap_or_default(),
+                };
                 self.screen = Screen::Import {
                     scan,
                     selected: 0,
                     marked: BTreeSet::new(),
-                    group: String::new(),
+                    group,
                     revision: self.catalog.load()?.revision,
                 };
                 self.notice.clear();

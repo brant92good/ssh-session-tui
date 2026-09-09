@@ -6,10 +6,15 @@ physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
 
-On September 10, 2026, the 26 native tests passed locally on Windows. These cover
+On September 10, 2026, the 30 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,
 groups, imports, explicit fallback, modal input and guarded Git sync. Clippy
 passed with warnings denied, including the screenshot exporter.
+
+Independent review added regressions for merge-only unrelated files in Git
+publication, cross-view favorite changes, import group preservation and group
+search. Catalog-only merges remain supported; unrelated changes in any merge
+parent comparison are refused before publication.
 
 The new Windows test owns a ConPTY without opening a desktop window. It launches
 the actual native picker, opens Local terminal, executes nonce output, interrupts
