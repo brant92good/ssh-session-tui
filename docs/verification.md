@@ -43,11 +43,11 @@ to check remote commands, Ctrl+C, resizing, logout and return to the native pick
 A loopback server proves the SSH handoff; it does not prove an external network
 or a specific third-party proxy.
 
-All five native targets passed at
-[`79686f9`](https://github.com/brant92good/ssh-session-tui/actions/runs/34374889974),
+All five native targets passed at the independently reviewed
+[`270aa71`](https://github.com/brant92good/ssh-session-tui/actions/runs/34378481055),
 including the loopback SSH checks on Linux x64 and ARM64. The
-[legacy compatibility matrix](https://github.com/brant92good/ssh-session-tui/actions/runs/34374889936)
-also passed. These branch runs precede the separate released-HTTPS installation gate.
+[legacy compatibility matrix](https://github.com/brant92good/ssh-session-tui/actions/runs/34378481045)
+also passed. The same commit is tagged `v0.6.0`.
 
 The [Windows startup comparison](benchmarks/startup.md) measured the equivalent
 `list --json` command at 80.82 ms median with Python and 17.56 ms with Rust.
@@ -79,6 +79,18 @@ then runs `scripts/check_release_install.py` on all five platforms against the
 **public HTTPS one-command installer and those released assets**, covering fresh
 installation, update, rejection of a wrong checksum and preserved favorite data.
 Stable promotion requires those checks and independent review.
+
+For [v0.6.0](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.0),
+[the complete tag workflow passed](https://github.com/brant92good/ssh-session-tui/actions/runs/34379081600):
+all five build/test/package jobs and all five real HTTPS installation jobs.
+An additional independent Windows run on September 10 passed the same fresh
+install, update, checksum rejection, saved-favorite and inherited-environment
+checks in a temporary directory with PATH changes disabled. The downloaded
+Windows executable's SHA-256 was
+`35c3cfdf92acc2c3b0e1371b42a6af4b9adc8b654e5a4af5bbe1936d794c4547`.
+The release contains five executables, five checksum sidecars and license text.
+Release assets were not replaced after qualification. This evidence does not
+mark parent workspace integration or a physical macOS desktop as qualified.
 
 ## Reproduce
 

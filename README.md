@@ -45,7 +45,9 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | Linux | x64, ARM64 | Native terminal; static binary |
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
-See [verification](docs/verification.md) for exactly what has been exercised.
+[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.0)
+are available for each platform above. See [verification](docs/verification.md)
+for the published-download tests and what remains unqualified.
 
 ## Use the hosts you already have
 
