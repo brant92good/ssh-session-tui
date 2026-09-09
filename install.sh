@@ -12,6 +12,11 @@ checksum() {
     elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f 1
     else printf '%s\n' 'A SHA-256 tool (sha256sum or shasum) is required.' >&2; return 1; fi
 }
+add_path_line() {
+    if [ ! -f "$1" ] || ! grep -Fqx "$line" "$1"; then
+        printf '\n%s\n' "$line" >> "$1"
+    fi
+}
 main() {
     version=${SSH_SESSIONS_VERSION:-0.6.0}
     case "$version" in ''|*[!A-Za-z0-9.-]*) printf '%s\n' 'Invalid release version.' >&2; return 1;; esac
@@ -53,18 +58,24 @@ main() {
     if [ "${SSH_SESSIONS_NO_PATH:-0}" != 1 ]; then
         # Generate one sourceable PATH fragment; do not alter unrelated shell setup.
         quoted=$(printf '%s' "$install_root/bin" | sed "s/'/'\\\\''/g")
-        printf "export PATH='%s':\"\$PATH\"\n" "$quoted" > "$install_root/env"
+        printf "case :\"\${PATH-}\": in *:'%s':*) ;; *) export PATH='%s':\"\${PATH-}\";; esac\n" "$quoted" "$quoted" > "$install_root/env"
         quoted_root=$(printf '%s' "$install_root" | sed "s/'/'\\\\''/g")
         line=". '$quoted_root/env' # ssh-sessions"
         case "${SHELL:-/bin/sh}" in
             */zsh) profile="${ZDOTDIR:-$HOME}/.zshrc";;
-            */bash) profile="$HOME/.bashrc";;
+            */bash)
+                # Login Bash reads only the first existing login profile, while
+                # interactive non-login Bash reads .bashrc. Cover both without
+                # creating .bash_profile and hiding an existing .profile.
+                add_path_line "$HOME/.bashrc"
+                profile="$HOME/.profile"
+                for candidate_profile in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+                    if [ -r "$candidate_profile" ]; then profile=$candidate_profile; break; fi
+                done;;
             */fish) profile=''; mkdir -p "$HOME/.config/fish/conf.d"; printf "fish_add_path '%s'\n" "$quoted" > "$HOME/.config/fish/conf.d/ssh-sessions.fish";;
             *) profile="$HOME/.profile";;
         esac
-        if [ -n "$profile" ]; then
-            if [ ! -f "$profile" ] || ! grep -Fqx "$line" "$profile"; then printf '\n%s\n' "$line" >> "$profile"; fi
-        fi
+        if [ -n "$profile" ]; then add_path_line "$profile"; fi
     fi
     printf '\n%s\n' "Installed SSH Sessions $version. Run ssh-sessions."
     printf 'Command: %s/bin/ssh-sessions\n' "$install_root"

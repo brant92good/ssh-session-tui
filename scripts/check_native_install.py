@@ -21,6 +21,11 @@ def main():
         root = Path(temporary) / "space 測試 and ' quote"
         root.mkdir()
         install_dir = root / 'app'
+        test_home = root / 'home'
+        test_home.mkdir()
+        (test_home/'.bashrc').write_text('# existing interactive settings\n')
+        (test_home/'.bash_login').write_text('# existing login settings\n')
+        (test_home/'.profile').write_text('# existing shared settings\n')
         def install(expected=digest, destination=install_dir, success=True):
             env = dict(os.environ)
             if os.name == 'nt':
@@ -32,7 +37,8 @@ def main():
             else:
                 command = ['sh', str(source / 'install.sh')]
                 env.update(SSH_SESSIONS_INSTALL_DIR=str(destination), SSH_SESSIONS_BINARY=str(binary),
-                           SSH_SESSIONS_SHA256=expected, SSH_SESSIONS_NO_PATH='0' if options.with_path else '1')
+                           SSH_SESSIONS_SHA256=expected, SSH_SESSIONS_NO_PATH='0' if options.with_path else '1',
+                           HOME=str(test_home), SHELL='/bin/bash')
             result = subprocess.run(command, env=env, capture_output=True, encoding='utf-8', errors='replace', timeout=45, creationflags=flags)
             assert (result.returncode == 0) == success, (result.stdout, result.stderr)
         def run(*args):
@@ -83,6 +89,17 @@ def main():
                     check = subprocess.run(['sh', '-c', '. "$1"; command -v ssh-sessions', 'check', str(fragment)],
                                            capture_output=True, text=True, timeout=5)
                     assert check.returncode == 0 and check.stdout.strip() == str(install_dir/'bin/ssh-sessions'), check.stderr
+                expected_command = str(install_dir/'bin/ssh-sessions')
+                shell_environment = dict(os.environ, HOME=str(test_home), PATH='/usr/bin:/bin')
+                for mode in (['-lc'], ['--noprofile', '-ic']):
+                    check = subprocess.run(['/bin/bash', *mode, 'command -v ssh-sessions'],
+                                           env=shell_environment, capture_output=True, text=True, timeout=10)
+                    assert check.returncode == 0 and check.stdout.strip() == expected_command, (mode, check.stdout, check.stderr)
+                assert not (test_home/'.bash_profile').exists()
+                assert (test_home/'.profile').read_text() == '# existing shared settings\n'
+                for profile in ('.bashrc', '.bash_login'):
+                    content = (test_home/profile).read_text()
+                    assert content.startswith('# existing ') and content.count('# ssh-sessions') == 1, content
     print('PASS: native install/update, Unicode and quoted paths, checksum rejection, unrelated directory, data preservation, inherited dev environment.')
 
 

@@ -48,8 +48,10 @@ C:\Tools\SSHSessions\bin\ssh-sessions.exe --version
 
 Unix equivalents are `SSH_SESSIONS_INSTALL_DIR=/absolute/path` and
 `SSH_SESSIONS_NO_PATH=1` in the environment of `sh install.sh`. Those environment
-variables also work with PowerShell. By default Unix setup adds one managed line
-to `.bashrc`, `.zshrc`, `.profile`, or a Fish `conf.d` file; it preserves the rest.
+variables also work with PowerShell. Unix setup adds a managed line to your shell
+startup file. Bash gets it in `.bashrc` and its active login profile, so both
+terminal startup modes work; Zsh uses `.zshrc`, Fish uses a `conf.d` file, and
+other shells use `.profile`. Setup preserves the rest of each file.
 
 `-Version` / `SSH_SESSIONS_VERSION` selects a release. Developer checks can use
 `-Binary` / `SSH_SESSIONS_BINARY` with `-Sha256` / `SSH_SESSIONS_SHA256`. Local
