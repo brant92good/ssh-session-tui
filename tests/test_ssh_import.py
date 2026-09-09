@@ -21,7 +21,7 @@ class SSHImportTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.config = self.root / 'SSH settings 測試/config'
         self.config.parent.mkdir()
         self.catalog = Catalog(self.root / 'shared/catalog.json', self.root / 'device')
@@ -159,8 +159,21 @@ class SSHImportTests(unittest.TestCase):
         if os.name == 'nt':
             # Shared runner/temp ACLs can contain extra writable principals.
             # Restrict only this generated Include file, never the user's config.
-            subprocess.run(['icacls', str(included), '/inheritance:r', '/grant:r', getpass.getuser() + ':(F)'],
-                check=True, capture_output=True, timeout=8, creationflags=subprocess.CREATE_NO_WINDOW)
+            permissions = self.root / 'fixture-permissions.ps1'
+            permissions.write_text('''param([string]$Path)
+$ErrorActionPreference = 'Stop'
+$fixtureIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$fixtureAcl = New-Object System.Security.AccessControl.FileSecurity
+$fixtureAcl.SetOwner($fixtureIdentity)
+$fixtureAcl.SetAccessRuleProtection($true, $false)
+$fixtureRule = New-Object System.Security.AccessControl.FileSystemAccessRule($fixtureIdentity, 'FullControl', 'Allow')
+$fixtureAcl.AddAccessRule($fixtureRule)
+[System.IO.File]::SetAccessControl($Path, $fixtureAcl)
+''', encoding='utf-8')
+            secured = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+                            '-File', str(permissions), str(included)],
+                capture_output=True, timeout=12, creationflags=subprocess.CREATE_NO_WINDOW)
+            self.assertEqual(secured.returncode, 0, secured.stderr.decode('utf-8', errors='replace'))
         # This generated fixture has no Match exec, helper, or user configuration.
         # Only this test invokes -G; production discovery never invokes SSH.
         for alias in ('web', 'UPPER', 'upper', 'web1'):
