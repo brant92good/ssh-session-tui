@@ -12,7 +12,7 @@ Organize servers by project or location, find a machine, and press Enter to conn
 **Windows — paste into PowerShell:**
 
 ```powershell
-irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 | iex
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 | iex"
 ```
 
 **macOS / Linux — paste into your terminal:**

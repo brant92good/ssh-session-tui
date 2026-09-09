@@ -10,6 +10,8 @@ Before running a downloaded script, you can inspect [install.ps1](../install.ps1
 or [install.sh](../install.sh). Internet access is needed during installation.
 The normal install updates your user PATH through `uv tool update-shell`.
 Open a new terminal if the current shell cannot find the command yet.
+The Windows command sets execution policy for its installer process only;
+it does not change your saved user or machine execution policy.
 
 ## Locations
 
