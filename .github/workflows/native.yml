@@ -8,7 +8,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025, ubuntu-24.04, macos-14, macos-15-intel]
+        include:
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            rustflags: '-C target-feature=+crt-static'
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            rustflags: ''
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            rustflags: ''
+          - os: macos-14
+            target: aarch64-apple-darwin
+            rustflags: ''
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            rustflags: ''
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -16,26 +31,41 @@ jobs:
         with:
           python-version: '3.12'
       - name: Prepare build toolchain
-        run: rustup toolchain install 1.94.0 --profile minimal --component clippy --component rustfmt
+        run: rustup toolchain install 1.94.0 --profile minimal --component clippy --component rustfmt --target ${{ matrix.target }}
+      - name: Prepare static Linux linker
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: cargo +1.94.0 fmt --check
-      - run: cargo +1.94.0 test --locked
-      - run: cargo +1.94.0 clippy --locked --all-targets -- -D warnings
-      - run: cargo +1.94.0 build --release --locked
+      - run: cargo +1.94.0 test --locked --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+      - run: cargo +1.94.0 clippy --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+      - run: cargo +1.94.0 build --release --locked --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
       - name: Compare legacy file formats and locks (developer check only)
         shell: bash
         run: |
-          binary=target/release/ssh-sessions
+          binary=target/${{ matrix.target }}/release/ssh-sessions
           if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
           python scripts/check_native_compat.py --binary "$binary"
+      - name: Fresh binary install, update and checksum rejection
+        shell: bash
+        run: |
+          binary=target/${{ matrix.target }}/release/ssh-sessions
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/check_native_install.py --binary "$binary" --with-path
       - name: Real local-shell handoff, interrupt, resize and return
         if: runner.os != 'Windows'
         shell: bash
-        run: SSH_SESSIONS_NATIVE_BINARY="$PWD/target/release/ssh-sessions" python tests/test_pty.py
+        run: SSH_SESSIONS_NATIVE_BINARY="$PWD/target/${{ matrix.target }}/release/ssh-sessions" python tests/test_pty.py
       - name: Keep native build for installation checks
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ssh-sessions-${{ matrix.os }}
+          name: ssh-sessions-${{ matrix.target }}
           path: |
-            target/release/ssh-sessions
-            target/release/ssh-sessions.exe
+            target/${{ matrix.target }}/release/ssh-sessions
+            target/${{ matrix.target }}/release/ssh-sessions.exe
           if-no-files-found: error

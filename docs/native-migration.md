@@ -25,6 +25,19 @@ marker, and returned to the picker after exit. No desktop window was activated.
 The enclosing PowerShell tool session reported exit 1 after the interrupt; the
 app's final exit status still needs an independent direct-process check.
 
+The first native CI run passed on Windows 2025, Ubuntu 24.04 and both macOS ARM
+and Intel runners, including native local-shell interrupt/resize/return on Unix:
+[run 34365641785](https://github.com/brant92good/ssh-session-tui/actions/runs/34365641785).
+This does not establish real remote desktop support.
+
+Windows dependency inspection found VCRUNTIME140.dll in the default build.
+Rebuilding with `-C target-feature=+crt-static` removed the external CRT imports;
+`dumpbin /DEPENDENTS` then listed only Windows system DLLs. The resulting executable
+passed the file/lock compatibility check again. Release builds use this setting,
+and Linux release builds use musl to avoid a dependency on a recent glibc. The
+installer downloads the executable and verifies its SHA-256 hash before replacing
+an existing app. It never installs Python, Rust or a separate C runtime.
+
 Release gates still open: complete platform and CLI parity review, automatic
 binary packaging/installation/update tests, real remote desktop qualification,
 README screenshots from the native UI, and integration with Terminal Workspace's
