@@ -82,6 +82,13 @@ pub fn address(value: &str) -> Result<String> {
     if value.parse::<std::net::IpAddr>().is_ok() {
         return Ok(value);
     }
+    if let Some((ip, scope)) = value.split_once('%')
+        && ip.parse::<std::net::Ipv6Addr>().is_ok()
+        && !scope.is_empty()
+        && !scope.contains('%')
+    {
+        return Ok(value);
+    }
     ensure!(
         value
             .as_bytes()
@@ -316,32 +323,27 @@ pub fn locked(path: &Path) -> Result<Lock> {
 
 /// Resolve existing ancestors as Python Path.resolve does, without keeping Windows' extended prefix.
 pub fn absolute(path: &Path) -> Result<PathBuf> {
-    let path = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()?.join(path)
-    };
-    let mut missing = Vec::new();
-    let mut ancestor = path.as_path();
-    while !ancestor.exists() {
-        missing.push(ancestor.file_name().context("Invalid path")?.to_os_string());
-        ancestor = ancestor.parent().context("Invalid path")?;
-    }
-    let mut result = fs::canonicalize(ancestor)?;
-    #[cfg(windows)]
-    {
-        let text = result.to_string_lossy();
-        result = if let Some(unc) = text.strip_prefix("\\\\?\\UNC\\") {
-            PathBuf::from(format!("\\\\{unc}"))
-        } else {
-            PathBuf::from(text.strip_prefix("\\\\?\\").unwrap_or(&text))
-        };
-    }
-    for item in missing.into_iter().rev() {
-        if item == ".." {
-            result.pop();
-        } else if item != "." {
-            result.push(item);
+    let path = std::path::absolute(path)?;
+    let mut result = PathBuf::new();
+    for part in path.components() {
+        match part {
+            std::path::Component::ParentDir => {
+                result.pop();
+            }
+            std::path::Component::CurDir => {}
+            _ => result.push(part.as_os_str()),
+        }
+        if matches!(part, std::path::Component::Normal(_)) && result.exists() {
+            result = fs::canonicalize(&result)?;
+            #[cfg(windows)]
+            {
+                let text = result.to_string_lossy();
+                result = if let Some(unc) = text.strip_prefix("\\\\?\\UNC\\") {
+                    PathBuf::from(format!("\\\\{unc}"))
+                } else {
+                    PathBuf::from(text.strip_prefix("\\\\?\\").unwrap_or(&text))
+                };
+            }
         }
     }
     Ok(result)

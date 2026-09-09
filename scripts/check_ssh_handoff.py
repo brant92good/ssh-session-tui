@@ -45,12 +45,12 @@ HostKey {root/'host'}
 PidFile {root/'sshd.pid'}
 AuthorizedKeysFile {root/'client.pub'}
 StrictModes no
-UsePAM no
+UsePAM yes
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
 PrintMotd no
-LogLevel ERROR
+LogLevel VERBOSE
 ForceCommand /bin/sh -c 'printf "ssh-loopback-ready\\n"; exec /bin/sh -i'
 ''')
         config = root/'ssh_config'
@@ -81,6 +81,13 @@ ForceCommand /bin/sh -c 'printf "ssh-loopback-ready\\n"; exec /bin/sh -i'
                     assert time.monotonic() < deadline, 'Owned sshd did not start'
                     time.sleep(.05)
             args = [str(binary), '--catalog', str(root/'catalog.json'), '--state-dir', str(root/'device')]
+            # Hosted runner accounts can have locked passwords. PAM account
+            # validation supports public-key login without unlocking that account.
+            # Qualify the SSH fixture before attributing a failure to the TUI.
+            preflight = subprocess.run(['ssh', '-F', str(config), 'loopback-test'], input='exit\n',
+                                       capture_output=True, text=True, timeout=15)
+            assert preflight.returncode == 0 and 'ssh-loopback-ready' in preflight.stdout, (
+                preflight.stdout, preflight.stderr, (root/'sshd.log').read_text())
             def command(*tail):
                 result = subprocess.run([*args, *tail, '--json'], capture_output=True, text=True, timeout=10)
                 assert result.returncode == 0, (result.stdout, result.stderr)

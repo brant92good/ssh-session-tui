@@ -148,7 +148,7 @@ impl Picker {
                 .highlight_style(Style::default().bg(SELECTED))
                 .highlight_symbol("› "),
             parts[3],
-            &mut ListState::default().with_selected(Some(self.selected)),
+            &mut ListState::default().with_selected(self.selection_valid.then_some(self.selected)),
         );
         frame.render_widget(
             Paragraph::new(

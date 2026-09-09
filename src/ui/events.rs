@@ -109,6 +109,7 @@ impl Picker {
                         };
                     }
                     KeyCode::Enter => {
+                        self.ensure_current()?;
                         let route = current
                             .routes
                             .get(selected)
@@ -330,6 +331,19 @@ impl Picker {
     }
     fn main_key(&mut self, key: KeyEvent) -> Result<()> {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        if matches!(
+            key.code,
+            KeyCode::Up
+                | KeyCode::Down
+                | KeyCode::Home
+                | KeyCode::End
+                | KeyCode::PageUp
+                | KeyCode::PageDown
+                | KeyCode::Esc
+                | KeyCode::Char('/')
+        ) {
+            self.selection_valid = true;
+        }
         match key.code {
             KeyCode::Up => self.selected = self.selected.saturating_sub(1),
             KeyCode::Down => {
@@ -364,6 +378,7 @@ impl Picker {
                 self.selected = 0;
             }
             KeyCode::Char('1'..='9') if !ctrl => {
+                self.selection_valid = false;
                 if let KeyCode::Char(c) = key.code {
                     let target = self
                         .favorites
@@ -379,6 +394,7 @@ impl Picker {
                     self.group = None;
                     self.marked.clear();
                     self.selected = self.rows().iter().position(|id| id == &target).unwrap_or(0);
+                    self.selection_valid = true;
                     self.notice = "Press Enter to connect.".into();
                 }
             }

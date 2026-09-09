@@ -69,6 +69,18 @@ fn legacy_numeric_string_ports_and_full_casefold_matching() {
     );
 }
 #[test]
+fn nonexistent_parent_navigation_and_scoped_ipv6_preserve_legacy_inputs() {
+    let temp = tempfile::tempdir().unwrap();
+    assert_eq!(
+        absolute(&temp.path().join("new/missing/../catalog.json")).unwrap(),
+        absolute(temp.path()).unwrap().join("new/catalog.json")
+    );
+    assert_eq!(address("fe80::1%ethernet").unwrap(), "fe80::1%ethernet");
+    assert!(address("fe80::1%").is_err());
+    assert!(address("fe80::1%a%b").is_err());
+    assert!(address(&"a".repeat(101)).is_err());
+}
+#[test]
 fn reject_bad_fields_types_duplicates_and_options() {
     let valid = serde_json::to_value(json!({"version":1,"machines":[sample()]})).unwrap();
     for level in 0..3 {

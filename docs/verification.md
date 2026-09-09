@@ -6,7 +6,7 @@ physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
 
-On September 10, 2026, the 23 native tests passed locally on Windows. These cover
+On September 10, 2026, the 26 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,
 groups, imports, explicit fallback, modal input and guarded Git sync. Clippy
 passed with warnings denied, including the screenshot exporter.

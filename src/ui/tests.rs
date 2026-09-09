@@ -122,6 +122,60 @@ fn local_favorite_and_modal_numeric_isolation() {
     assert!(picker.choice.is_none());
 }
 #[test]
+fn invalid_number_then_enter_cannot_open_the_prior_or_adjacent_row() {
+    let (_temp, mut picker) = fixture();
+    press(&mut picker, KeyCode::Char('1'));
+    press(&mut picker, KeyCode::Char('9'));
+    press(&mut picker, KeyCode::Enter);
+    assert!(picker.choice.is_none());
+    assert!(matches!(picker.screen, Screen::Main));
+    let snapshot = picker.catalog.load().unwrap();
+    picker
+        .catalog
+        .save(&snapshot.machines[1..], &snapshot.revision)
+        .unwrap();
+    picker.reload().unwrap();
+    press(&mut picker, KeyCode::Char('1'));
+    press(&mut picker, KeyCode::Enter);
+    assert!(picker.choice.is_none());
+    press(&mut picker, KeyCode::Esc);
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(picker.choice, Some(Choice::Local)));
+}
+#[test]
+fn changed_catalog_requires_review_before_connecting_from_list_or_route_modal() {
+    let (_temp, mut picker) = fixture();
+    picker
+        .catalog
+        .choose(&picker.snapshot.machines[0], "lan")
+        .unwrap();
+    picker.reload().unwrap();
+    press(&mut picker, KeyCode::Char('1'));
+    let mut snapshot = picker.catalog.load().unwrap();
+    snapshot.machines[0].routes[0].host = "192.0.2.90".into();
+    picker
+        .catalog
+        .save(&snapshot.machines, &snapshot.revision)
+        .unwrap();
+    press(&mut picker, KeyCode::Enter);
+    assert!(picker.choice.is_none());
+    assert!(picker.notice.contains("changed"));
+    press(&mut picker, KeyCode::Enter);
+    assert!(
+        matches!(picker.choice.take(), Some(Choice::Connect(_,route)) if route.host=="192.0.2.90")
+    );
+    press(&mut picker, KeyCode::Char('r'));
+    snapshot = picker.catalog.load().unwrap();
+    snapshot.machines[0].routes[0].host = "192.0.2.91".into();
+    picker
+        .catalog
+        .save(&snapshot.machines, &snapshot.revision)
+        .unwrap();
+    press(&mut picker, KeyCode::Enter);
+    assert!(picker.choice.is_none());
+    assert!(matches!(picker.screen, Screen::Main));
+}
+#[test]
 fn favorite_reassignment_and_stale_slot_menu() {
     let (_temp, mut picker) = fixture();
     press(&mut picker, KeyCode::Char('f'));

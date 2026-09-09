@@ -169,6 +169,7 @@ pub struct Picker {
     screen: Screen,
     selected: usize,
     query: Input,
+    selection_valid: bool,
     group: Option<String>,
     marked: BTreeSet<String>,
     pub notice: String,
@@ -189,6 +190,7 @@ impl Picker {
             screen: Screen::Main,
             selected: 0,
             query: Input::default(),
+            selection_valid: true,
             group: None,
             marked: BTreeSet::new(),
             notice: String::new(),
@@ -303,7 +305,27 @@ impl Picker {
         );
         Ok(())
     }
+    fn ensure_current(&mut self) -> Result<()> {
+        if self.catalog.load()?.revision != self.snapshot.revision {
+            let selected_id = self.current();
+            self.reload()?;
+            self.screen = Screen::Main;
+            let position = self.rows().iter().position(|id| id == &selected_id);
+            self.selection_valid = position.is_some();
+            self.selected = position.unwrap_or(0);
+            anyhow::bail!(
+                "Catalog changed in another tab. Review the updated machine before connecting."
+            );
+        }
+        self.preferences = self.catalog.preferences()?;
+        Ok(())
+    }
     fn connect(&mut self, id: &str) -> Result<()> {
+        ensure!(
+            self.selection_valid,
+            "Choose an available favorite or use the arrow keys before connecting."
+        );
+        self.ensure_current()?;
         if id == LOCAL {
             self.choice = Some(Choice::Local);
             return Ok(());
