@@ -32,7 +32,13 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     if ($Binary -match '^https://') {
         Invoke-WebRequest -UseBasicParsing -Uri $Binary -OutFile $candidate
-        if (-not $Sha256) { $Sha256 = ((Invoke-WebRequest -UseBasicParsing -Uri ($Binary + '.sha256')).Content.Trim() -split '\s+')[0] }
+        if (-not $Sha256) {
+            # Release sidecars may have an application/octet-stream content type.
+            # Read bytes from a file rather than assuming IWR.Content is a string.
+            $checksumFile = Join-Path $stage 'checksum.txt'
+            Invoke-WebRequest -UseBasicParsing -Uri ($Binary + '.sha256') -OutFile $checksumFile
+            $Sha256 = ([IO.File]::ReadAllText($checksumFile).Trim() -split '\s+')[0]
+        }
     } elseif (Test-Path -LiteralPath $Binary -PathType Leaf) {
         Copy-Item -LiteralPath $Binary -Destination $candidate
         if (-not $Sha256) { throw 'Local test binaries require -Sha256.' }

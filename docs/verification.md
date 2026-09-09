@@ -25,6 +25,17 @@ to check remote commands, Ctrl+C, resizing, logout and return to the native pick
 A loopback server proves the SSH handoff; it does not prove an external network
 or a specific third-party proxy.
 
+All five native targets passed at
+[`79686f9`](https://github.com/brant92good/ssh-session-tui/actions/runs/34374889974),
+including the loopback SSH checks on Linux x64 and ARM64. The
+[legacy compatibility matrix](https://github.com/brant92good/ssh-session-tui/actions/runs/34374889936)
+also passed. These branch runs precede the separate released-HTTPS installation gate.
+
+The [Windows startup comparison](benchmarks/startup.md) measured the equivalent
+`list --json` command at 80.82 ms median with Python and 17.56 ms with Rust.
+This is process startup through a complete JSON response, not TUI painting,
+shortcut focus or network login time.
+
 ## Saved-data and installer checks
 
 `scripts/check_native_compat.py` runs the compiled binary against files created

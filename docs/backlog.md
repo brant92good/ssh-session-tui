@@ -19,9 +19,10 @@ These items are intentionally not implemented as part of that first version.
 - **Catalog interoperability with Port Forward TUI and Herdr.** Decide a shared
   stable machine identity and route mapping before merging their catalogs or
   changing the existing paired workspace's return-shortcut context.
-- **Linux and macOS qualification.** Version 0.5 adds installers and CI for all
-  three operating systems, including a Unix local-shell pseudo-terminal test.
-  Real remote login in macOS/Linux terminal applications remains to be checked.
+- **Desktop and network qualification.** Native 0.6 adds compiled releases and
+  OS pseudo-terminal checks on Windows, Linux and macOS. Hosted Linux also has
+  an isolated loopback SSH fixture. Physical macOS desktop use remains beta;
+  VPN/proxy behavior and external-network cases need broader qualification.
   The cross-project [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md)
   keeps global/tab shortcuts in the terminal integration layer. Nested groups,
   tags and bulk organization are implemented in 0.4; inherited SSH settings

@@ -6,7 +6,7 @@
 
 Stop saving the same server as three different machines. Keep its LAN, VPN and
 tunnel addresses together, then choose the route each computer should use.
-Open a regular with **1, Enter**, search the rest, and get back to the list when
+Open a favorite with **1, Enter**, search the rest, and get back to the list when
 you log out. Your existing SSH client handles the connection.
 
 [![Native checks](https://github.com/brant92good/ssh-session-tui/actions/workflows/native.yml/badge.svg)](https://github.com/brant92good/ssh-session-tui/actions/workflows/native.yml)
