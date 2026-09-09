@@ -28,6 +28,21 @@ sharing preferences accidentally; moving a checkout means selecting routes
 again. With multiple routes, removing the selected route requires a fresh
 choice. With one remaining route, the choice is unambiguous.
 
+Numbered favorites are a separate `.favorites.json` file next to those device
+preferences. Version 1 stores `slots`, a map from strings `1`–`9` to stable
+machine IDs or the reserved `@local` target. It contains no commands, credentials
+or copied route addresses and is not included in catalog sync. Writes use the
+catalog's device lock and an optional revision check, so two open slot menus
+cannot silently overwrite each other. Deleted targets remain visibly missing
+until cleared/replaced; numbers never shift to adjacent machines. `Favorites.seed`
+installs validated initial values only if the file does not yet exist.
+
+The Local terminal row exists independently of the machine catalog. Number keys
+select favorites on the main list and Enter opens the selected item. Digits in
+inputs remain text and favorites do not escape a modal dialog. Machines with
+ambiguous routes still require an explicit route choice. `favorites list/set/remove`
+are CLI operations for local metadata and never start a session.
+
 Catalog writes use a device-local file lock, a revision check and atomic file
 replacement. A second tab with an older snapshot must reload instead of
 overwriting a newer edit. Git synchronizes the shared file; its normal conflict

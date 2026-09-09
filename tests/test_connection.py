@@ -60,3 +60,14 @@ class ConnectionTests(unittest.TestCase):
                 self.assertEqual(main(['--catalog', str(path), 'list', '--json']), 0)
             self.assertIn('"machines": []', output.getvalue())
             self.assertFalse(path.exists())
+
+    def test_local_selection_runs_shell_then_returns_to_picker_without_ssh(self):
+        choices = iter((Choice('local'), None))
+        commands = []
+        class FakePicker:
+            def __init__(self, *args, **kwargs): pass
+            def run(self): return next(choices)
+        with patch('ssh_sessions.cli.local_command', return_value=['pwsh', '-NoLogo']), \
+             patch('ssh_sessions.cli.ssh_command', side_effect=AssertionError('Local must not invoke SSH')):
+            self.assertEqual(picker_loop(None, FakePicker, lambda cmd: commands.append(cmd) or 0), 0)
+        self.assertEqual(commands, [['pwsh', '-NoLogo']])

@@ -72,11 +72,38 @@ def main(argv=None):
     importing.add_argument('--all', action='store_true', help='Select all entries without unresolved metadata')
     importing.add_argument('--apply', action='store_true', help='Save selected metadata after review; does not connect or publish')
     importing.add_argument('--json', action='store_true')
+    favorites = commands.add_parser('favorites', help='List or edit device-local numbered favorites; never connects')
+    favorites.add_argument('action', choices=('list', 'set', 'remove'), nargs='?', default='list')
+    favorites.add_argument('slot', nargs='?', help='Favorite number 1–9 for set/remove')
+    favorite_target = favorites.add_mutually_exclusive_group()
+    favorite_target.add_argument('--machine', help='Exact machine ID from list --json')
+    favorite_target.add_argument('--local', action='store_true', help='Use local PowerShell')
+    favorites.add_argument('--json', action='store_true')
     options = parser.parse_args(argv)
     structured = getattr(options, 'json', False)
     try:
         catalog = Catalog(options.catalog, options.state_dir)
         snapshot = catalog.load()
+        if options.command == 'favorites':
+            from .favorites import LOCAL, Favorites, target_name
+            store = Favorites(catalog)
+            if options.action == 'set':
+                if options.slot is None or (not options.local and not options.machine):
+                    raise CatalogError('Use favorites set NUMBER with --machine MACHINE_ID or --local.')
+                store.assign(options.slot, LOCAL if options.local else options.machine)
+            elif options.action == 'remove':
+                if options.slot is None or options.local or options.machine:
+                    raise CatalogError('Use favorites remove NUMBER without a target.')
+                store.assign(options.slot, None)
+            elif options.slot is not None or options.local or options.machine:
+                raise CatalogError('Use favorites list without a slot or target.')
+            rows = [{'slot': int(slot), 'target': target, 'name': target_name(target, snapshot.machines),
+                     'target_exists': target == LOCAL or any(m.id == target for m in snapshot.machines)}
+                    for slot, target in sorted(store.load().slots.items())]
+            result = {'ok': True, 'favorites': rows, 'scope': 'device', 'activation': 'number_then_enter'}
+            print(json.dumps(result) if structured else '\n'.join(f"{r['slot']}: {r['name']}" for r in rows) or
+                  'No numbered favorites. In the picker, select a row and press F.')
+            return 0
         if options.command == 'import-ssh':
             from .ssh_import import scan_ssh, import_status, import_selected
             scan = scan_ssh(options.config)
@@ -96,6 +123,8 @@ def main(argv=None):
                       'ssh_available': bool(shutil.which('ssh.exe' if os.name == 'nt' else 'ssh')),
                       'git_available': bool(shutil.which('git')), 'local_pwsh_available': bool(shutil.which('pwsh'))}
             catalog.preferences()
+            from .favorites import Favorites
+            Favorites(catalog).load()
             result = {'ok': checks['ssh_available'], 'checks': checks,
                       'next_step': 'Run without a command to choose or add a machine. Git is needed only for sync.'}
             print(json.dumps(result) if structured else '\n'.join([*(f'{k}: {v}' for k, v in checks.items()), result['next_step']]))

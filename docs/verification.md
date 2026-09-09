@@ -65,3 +65,23 @@ with a live Cloudflare login.
 
 The import screenshot uses `examples/ssh_config`; its selected-row checkmark,
 metadata columns and keyboard instructions were rendered and inspected.
+
+## Local terminal and numbered favorites (0.3)
+
+The expanded suite passed 62 tests locally. New checks cover an empty catalog's
+visible local row, number-then-Enter selection, preserving digits in forms/search,
+modal isolation, device route choice, missing/empty favorites refusing adjacent
+connections, changed catalog review, and local-shell handoff back to the picker.
+Favorite storage checks cover device isolation, moving/replacing/clearing slots,
+stale-edit rejection, malformed-file preservation, read-only CLI listing and
+first-install defaults preserving later edits. A 70×18 layout check preserves
+space for the connection list; 100×30 and 70×20 screenshots were rendered and
+visually inspected with example data only.
+
+The installed private catalog was exercised through the real Textual picker in
+headless mode for slots 1, 2 and 3. The two remote choices resolved to the expected
+machines and selected routes; argv construction retained the imported alias and
+port. The local command ran PowerShell Core. These checks did not log into the
+second server or move visible windows. They establish selection and command
+construction, not that every remote server is currently reachable. The original
+SSH config, existing Terminal tabs and running forward were preserved.

@@ -2,6 +2,10 @@
 
 Read README.md and docs/design.md. This public leaf owns the machine picker,
 metadata schema, device-only route preferences and explicit catalog sync.
+Numbered favorites live in a separate device-local file managed by favorites.py.
+They reference stable machine IDs or @local; never infer identity from row order.
+The Local terminal row is always available. Numbers select, Enter opens; preserve
+normal numeric input and modal isolation. Public defaults contain no personal hosts.
 Terminal Workspace owns Windows Terminal profiles and hotkeys. A user's private
 settings repository may store the metadata file and pin the public parent.
 

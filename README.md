@@ -26,6 +26,25 @@ Then press **Enter** to connect. SSH uses your existing local keys, key agent
 and configuration. The picker does not install keys or change SSH config.
 After the session ends, it returns to the list.
 
+**Local terminal** is always in the list, including on first use with no servers.
+Select it and press Enter for local PowerShell. `exit` returns to the picker.
+
+## Keep common connections one number away
+
+Highlight a machine or **Local terminal**, press **F**, choose a slot **1–9**,
+then **Enter** to save. The numbered favorites bar stays visible above the list.
+Press a favorite's **number, then Enter** to open it. The number selects and
+shows the destination first; it does not connect immediately. In search boxes
+and forms, number keys type normally.
+
+Favorites use stable machine IDs and this device's chosen route. Renaming or
+reordering machines does not retarget a number. A missing machine or empty slot
+stops the shortcut instead of connecting the adjacent row. Use F again to move
+or replace a favorite; D in that menu clears the highlighted slot. Each item can
+occupy one slot. Favorites stay on this device; catalog Pull/Publish does not
+sync them. A personal setup can seed defaults for a new laptop without replacing
+later keyboard edits.
+
 No host is required during installation. No account or Git repository is
 needed to use the picker locally. Run `app.py doctor` for local setup checks.
 
@@ -82,6 +101,8 @@ reserved for a [later design discussion](docs/backlog.md).
 | Key | Action |
 | --- | --- |
 | Up / Down, Enter | Choose a machine and connect |
+| 1–9, then Enter | Select a numbered favorite and open it |
+| F | Pin the highlighted machine or Local terminal to a number |
 | /, then Enter | Search, then return to the machine list |
 | A / E / D | Add, edit or delete a machine |
 | R | Manage routes and select this device's route |
@@ -157,6 +178,10 @@ the extra binding. Ctrl+Shift+T remains available.
 .\.venv\Scripts\python.exe app.py import-ssh --json
 # After reviewing the preview:
 .\.venv\Scripts\python.exe app.py import-ssh --apply --host YOUR_SSH_ALIAS --json
+.\.venv\Scripts\python.exe app.py favorites list --json
+.\.venv\Scripts\python.exe app.py favorites set 1 --machine MACHINE_ID --json
+.\.venv\Scripts\python.exe app.py favorites set 2 --local --json
+.\.venv\Scripts\python.exe app.py favorites remove 1 --json
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 

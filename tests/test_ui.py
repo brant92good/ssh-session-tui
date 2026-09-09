@@ -8,6 +8,8 @@ from textual.widgets import DataTable, Input
 from ssh_sessions.catalog import Catalog
 from ssh_sessions.ui import Form, Picker, Routes
 from ssh_sessions.import_ui import ImportSSH
+from ssh_sessions.favorites import LOCAL, Favorites
+from ssh_sessions.favorites_ui import FavoriteSlots
 from test_catalog import sample
 
 
@@ -58,7 +60,7 @@ class PickerTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press('/', 'n', 'o', 'n', 'e')
             self.assertEqual(app.query_one('#machines', DataTable).row_count, 0)
             await pilot.press('escape')
-            self.assertEqual(app.query_one('#machines', DataTable).row_count, 1)
+            self.assertEqual(app.query_one('#machines', DataTable).row_count, 2)
             await pilot.press('ctrl+l')
         self.assertEqual(app.return_value.kind, 'local')
 
@@ -116,3 +118,107 @@ class PickerTests(unittest.IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertEqual(len(self.catalog.load().machines), 3)
                 await pilot.press('q')
+
+    async def test_visible_local_terminal_works_with_an_empty_catalog(self):
+        self.catalog.save((), self.catalog.load().revision)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(70, 20)) as pilot:
+            self.assertEqual(app.row_targets, [LOCAL])
+            await pilot.press('enter')
+        self.assertEqual(app.return_value.kind, 'local')
+
+    async def test_number_selects_then_enter_connects_using_device_route(self):
+        self.catalog.choose(sample(), 'vpn')
+        Favorites(self.catalog).assign(1, sample().id)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.press('down', '1')
+            self.assertEqual(app.selected_key(), sample().id)
+            self.assertIsNone(app.return_value)
+            await pilot.press('enter')
+        self.assertEqual(app.return_value.route.id, 'vpn')
+
+    async def test_local_favorite_opens_local_shell(self):
+        Favorites(self.catalog).assign(2, LOCAL)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(70, 20)) as pilot:
+            await pilot.press('2')
+            self.assertIsNone(app.return_value)
+            await pilot.press('enter')
+        self.assertEqual(app.return_value.kind, 'local')
+
+    async def test_compact_window_leaves_room_for_common_connections(self):
+        Favorites(self.catalog).seed({'1': sample().id, '2': LOCAL})
+        app = Picker(self.catalog)
+        async with app.run_test(size=(70, 18)) as pilot:
+            table = app.query_one('#machines', DataTable)
+            self.assertGreaterEqual(table.content_size.height, 5)
+            self.assertEqual(table.row_count, 2)
+            await pilot.press('q')
+
+    async def test_arrows_resume_selection_after_an_empty_number(self):
+        self.catalog.choose(sample(), 'lan')
+        app = Picker(self.catalog)
+        async with app.run_test(size=(80, 25)) as pilot:
+            await pilot.press('9', 'enter')
+            self.assertIsNone(app.return_value)
+            await pilot.press('down', 'enter')
+        self.assertEqual(app.return_value.kind, 'local')
+
+    async def test_numbers_are_text_while_searching_or_editing(self):
+        Favorites(self.catalog).assign(1, sample().id)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.press('/', '1', '2')
+            self.assertEqual(app.query_one('#search', Input).value, '12')
+            await pilot.press('escape', 'a', '1', '2')
+            self.assertIsInstance(app.screen, Form)
+            self.assertEqual(app.screen.query_one('#name', Input).value, '12')
+            self.assertIsNone(app.return_value)
+            await pilot.press('escape', 'q')
+
+    async def test_favorites_menu_assigns_and_clears_without_connecting(self):
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.press('f')
+            self.assertIsInstance(app.screen, FavoriteSlots)
+            await pilot.press('3', 'enter')
+            self.assertEqual(Favorites(self.catalog).load().slots, {'3': sample().id})
+            self.assertIsNone(app.return_value)
+            await pilot.press('f', '3', 'd')
+            self.assertEqual(Favorites(self.catalog).load().slots, {})
+            await pilot.press('q')
+
+    async def test_unassigned_or_deleted_favorite_cannot_connect_an_adjacent_row(self):
+        self.catalog.choose(sample(), 'lan')
+        store = Favorites(self.catalog)
+        store.assign(1, sample().id)
+        self.catalog.save((), self.catalog.load().revision)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.press('1', 'enter', '9', 'enter')
+            self.assertIsNone(app.return_value)
+            await pilot.press('escape', 'enter')
+        self.assertEqual(app.return_value.kind, 'local')
+
+    async def test_catalog_change_requires_review_before_enter_connects(self):
+        self.catalog.choose(sample(), 'lan')
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 30)) as pilot:
+            changed = replace(sample(), routes=(replace(sample().routes[0], host='192.0.2.90'),))
+            self.catalog.save((changed,), self.catalog.load().revision)
+            await pilot.press('enter')
+            self.assertIsNone(app.return_value)
+            await pilot.press('enter')
+        self.assertEqual(app.return_value.route.host, '192.0.2.90')
+
+    async def test_number_keys_do_not_escape_route_modal(self):
+        Favorites(self.catalog).assign(2, LOCAL)
+        app = Picker(self.catalog)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.press('down', 'r')
+            self.assertIsInstance(app.screen, Routes)
+            await pilot.press('2')
+            self.assertIsInstance(app.screen, Routes)
+            self.assertIsNone(app.return_value)
+            await pilot.press('escape', 'q')

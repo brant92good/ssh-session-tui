@@ -14,6 +14,7 @@ os.environ.pop('NO_COLOR', None)
 os.environ['TERM'] = 'xterm-256color'
 os.environ['COLORTERM'] = 'truecolor'
 from ssh_sessions.catalog import Catalog
+from ssh_sessions.favorites import Favorites, LOCAL
 from ssh_sessions.ui import Picker
 from textual.widgets import Input
 
@@ -26,6 +27,10 @@ async def main():
         catalog = Catalog(directory / 'catalog.json', directory / 'device')
         catalog.path.write_bytes((ROOT / 'examples/catalog.json').read_bytes())
         catalog.choose(catalog.load().machines[0], 'lan')
+        favorites = Favorites(catalog)
+        favorites.assign(1, catalog.load().machines[0].id)
+        favorites.assign(2, LOCAL)
+        favorites.assign(3, catalog.load().machines[1].id)
         app = Picker(catalog)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(.3)
