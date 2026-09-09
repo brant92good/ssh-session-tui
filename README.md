@@ -1,11 +1,21 @@
+<img src="docs/brand/mark.svg" width="112" align="right" alt="SSH Sessions logo">
+
 # SSH Sessions
 
-A keyboard SSH manager with numbered favorites, machine groups and a local terminal.
-Organize servers by project or location, find a machine, and press Enter to connect.
+Your servers, a number key away.
 
-![SSH Sessions with grouped example machines](docs/screenshots/picker.svg)
+Save the machines you connect to, give your regulars a number, and press
+**1, then Enter** to open a session. Search a longer list, browse by project,
+or choose **Local terminal** when you want a shell on this computer.
 
-*Example machines and favorites.*
+[![Checks](https://github.com/brant92good/ssh-session-tui/actions/workflows/test.yml/badge.svg)](https://github.com/brant92good/ssh-session-tui/actions/workflows/test.yml)
+[![MIT license](https://img.shields.io/badge/license-MIT-65d6be)](LICENSE)
+
+[Install](#install) · [Keyboard guide](docs/usage.md) · [SSH import](#import-existing-ssh-hosts) · [Report a problem](https://github.com/brant92good/ssh-session-tui/issues)
+
+![SSH Sessions: numbered favorites, groups and a local terminal](docs/screenshots/picker.svg)
+
+*The actual app with example machines, numbered favorites and groups.*
 
 ## Install
 
@@ -15,162 +25,119 @@ Organize servers by project or location, find a machine, and press Enter to conn
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 | iex"
 ```
 
-**macOS / Linux — paste into your terminal:**
+**macOS / Linux — beta:**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.sh | sh
 ```
 
-Then run **`ssh-sessions`**. If the command is not found, open a new terminal.
-The installer downloads its own Python and dependencies; Python and Git do not
-need to be installed first. It adds the app command to your user PATH. Rerun
-the same command to update. Machines and device preferences are kept separately.
+Then run **`ssh-sessions`**. Open a new terminal if the command isn't found yet.
+The installer downloads Python and the app's dependencies. You don't need to
+install Python or Git first, and setup doesn't ask for a server.
+Run the same install command again to update.
 
-Connecting needs the **OpenSSH client** (`ssh`). Git is optional and used only
-for catalog sync. Installation never asks for a server. [Setup details,
-noninteractive options and uninstall](docs/install.md).
+Connecting uses your **OpenSSH client** (`ssh`). Git is only needed if you want
+to sync a catalog. [Installer details and uninstall](docs/install.md).
 
-Press **A** to add a machine, or **I** to import hosts from your SSH config.
-Select a row and press **Enter**. SSH uses your existing login settings.
-After logout, you return to the list. **Local terminal** opens a shell on this
-computer; `exit` returns to the picker.
+macOS and Linux installation, updating and local-shell controls pass automated
+tests. Real remote login in their desktop terminal apps still needs testing,
+so support remains **beta**. [Platform evidence](docs/verification.md).
 
-See [verification](docs/verification.md) for the tested platforms and limits.
+## Make your first connection
 
-## Numbered favorites
+1. Press **I** to import existing SSH hosts, or **A** to add a machine.
+2. Select it and press **Enter**. OpenSSH handles your usual login.
+3. Log out to return to the list. **Local terminal** works the same way; type `exit` to return.
 
-Highlight a machine or Local terminal, press **F**, choose a slot **1–9**, then
-**Enter** to save. Press its **number, then Enter** to open it from any group.
-The number selects the destination first. Digits in search and forms type normally.
+### Numbered favorites
 
-F also lets you move or replace a favorite. **D** in that menu clears a slot.
-Each item occupies one slot. Favorites are saved per device and use that device's
-selected route. Your personal setup can seed an initial layout on a new laptop.
+Select a machine or Local terminal, press **F**, and choose a slot from **1–9**.
+Press its **number, then Enter** to connect from any group. The number selects
+the destination first, so you can check it before opening a session.
 
-## Organize a large machine list
+## Who is this for?
 
-**G** opens the group browser. Choose a group and press Enter to show its machines
-and subgroups. Group counts include all descendants. **Esc** returns to All machines.
+- You keep returning to the same few servers and want their names on screen.
+- Your machine list has grown across projects, labs or locations and needs groups and search.
+- You use a LAN address at home and a different route on your laptop.
+- You work with a coding agent and want commands it can inspect, plus a picker you can use yourself.
 
-![Group browser](docs/screenshots/groups.svg)
+## A bigger list, still easy to find
 
-*Groups and counts from the example catalog.*
+**G** browses groups such as `Work/Production`. **/** searches names, addresses,
+groups and tags; try `tag:gpu`. Select several machines with **Space**, then
+**M** to move them or **T** to edit tags. Favorites work across groups.
 
-To create a group, highlight a machine and press **M**. Enter a path such as
-`Work/Production` or `Lab/GPU`, then **Ctrl+S**. A slash creates a nested group.
-Leave the field blank to move a machine to Ungrouped. Groups exist while they
-contain machines or subgroups.
+<details>
+<summary>See groups and the keyboard controls</summary>
 
-For a batch, mark rows with **Space**, or press **Ctrl+A** to select all shown.
-Then **M** moves the selection. **T** adds or removes comma-separated tags across
-those machines. The selected count is shown above the list. Starting a search
-or changing groups clears the selection. Group renaming is **G → E** and includes
-its subgroups. To merge groups, select their machines and move them to the same path.
-
-Press **/** to search names, addresses, usernames, group paths and tags. Combine
-words or use `tag:gpu`, `group:Work` or `group:Work tag:linux`. Quotes support
-spaces, such as `tag:"deep learning"`. Search applies within the current group.
-
-Groups and tags travel with the shared catalog. Numbered favorites and route
-choices remain per device. Catalogs with groups/tags use version 2: upgrade each
-copy of SSH Sessions to **0.4 or newer** before sharing organized catalogs.
-
-## Import existing SSH hosts
-
-Press **I**, use **Space** to select hosts or **A** for all, then **Enter** to
-import. Enter with no marked rows imports the highlighted host. Tab reaches
-the config path; Enter reloads it. New machines join the current group.
-
-![Import existing SSH hosts](docs/screenshots/import.svg)
-
-*Example SSH config.*
-
-Import reads named hosts, addresses, usernames and ports, including static
-Include files. Imported routes use the original SSH alias, keeping its proxy,
-jump-host and key settings available to OpenSSH. Existing machine names, groups
-and tags are preserved. Re-importing an alias updates its local config binding;
-changed destination values are flagged for review. See [import details](docs/ssh-import.md).
-
-## Use different routes on different computers
-
-A machine can have several named routes: for example, LAN at home and Tailscale
-on a laptop. Press **R** to add routes and choose one for this device. With one
-route, Enter uses it; with several and no selection, the route chooser opens.
-
-![Route chooser](docs/screenshots/routes.svg)
-
-If SSH fails, choose an alternative route to retry once, or Esc to return.
-Trying an alternative leaves the saved route preference unchanged. Cloudflare,
-VPN and jump-host routes use the configuration already installed on that computer.
+![Nested machine groups in SSH Sessions](docs/screenshots/groups.svg)
 
 | Key | Action |
 | --- | --- |
-| Arrows, Enter | Choose a machine or local terminal and open it |
-| 1–9, Enter / F | Open / edit numbered favorites |
-| G | Browse groups; E in the browser renames a group |
-| Space / Ctrl+A | Select one machine / all shown |
-| M / T | Move selected machines / edit their tags |
-| / / Esc | Search / clear filters and selection |
+| Arrows, Enter | Choose and open a session |
+| 1–9, Enter / F | Open / edit a numbered favorite |
+| G / / | Browse groups / search |
 | A / E / D | Add / edit / delete a machine |
-| R / I | Routes / SSH import |
-| S | Pull / Publish |
-| F5 / F1 | Reload / keyboard guide |
-| Ctrl+L / Q | Local shell / close picker |
+| R / I | Choose a route / import SSH hosts |
+| Space / Ctrl+A | Select one machine / all shown |
+| M / T | Move selected machines / edit tags |
+| S | Pull or publish the catalog |
+| F1 / Q | Keyboard guide / close picker |
 
-Forms use Tab to move, Ctrl+S to save and Esc to cancel.
+Forms use **Tab** to move, **Ctrl+S** to save and **Esc** to cancel.
+[Full keyboard and organization guide](docs/usage.md).
 
-## Share a catalog through Git
+</details>
 
-Choose a catalog file in a private Git checkout:
+## Import existing SSH hosts
 
-```powershell
-.\.venv\Scripts\python.exe app.py --catalog C:\MySetup\connections\catalog.json init
-# Add and commit that file, and configure the repository's Git upstream.
-.\.venv\Scripts\python.exe app.py --catalog C:\MySetup\connections\catalog.json
-```
+Press **I** to preview your SSH config, mark hosts with **Space**, then press
+**Enter** to import. Imported connections use their original SSH aliases, so
+OpenSSH can still apply your jump-host, proxy and key settings.
+You can choose another config file in the import screen.
 
-**S → P** pulls the repository with a fast-forward merge. Commit or stash local
-changes first. **S → U** commits and pushes the catalog file. If the branch has
-unpublished changes to other files, publish those with your normal Git workflow.
-Resolve conflicting edits with Git before retrying sync.
+[What gets imported, and how repeat imports work](docs/ssh-import.md).
 
-Without `--catalog`, Windows stores the catalog under `%LOCALAPPDATA%\SSHSessions`.
-See [data format and sync behavior](docs/design.md) for file locations and fields.
+## One machine, different routes
 
-## Windows Terminal integration
+A machine can have routes named **LAN**, **Tailscale**, or whatever makes sense
+to you. **R** chooses this computer's route. If a connection fails, you can pick
+an alternative to try; the app waits for your choice.
 
-[Terminal Workspace](https://github.com/brant92good/terminal-workspace) includes
-SSH Sessions. From that checkout:
-
-```powershell
-.\install.ps1 -IntegrationOnly -SessionPicker -NewTabShortcut ctrl+n
-```
-
-New tabs open the picker. **Ctrl+N** becomes an additional new-tab shortcut;
-**Ctrl+Alt+N** opens local PowerShell directly. Omit `-NewTabShortcut` to keep your
-current key bindings. Terminal owns these shortcuts, including when a shell or
-editor is running inside the tab.
+You can [share a catalog through Git](docs/usage.md#share-a-catalog-through-git).
+Machine names, addresses, usernames, groups and tags travel together.
+Each computer keeps its own route choices and favorite numbers.
 
 ## Commands for scripts and agents
 
-```powershell
-.\.venv\Scripts\python.exe app.py list --group Work --tag gpu --json
-.\.venv\Scripts\python.exe app.py groups list --json
-.\.venv\Scripts\python.exe app.py organize --machine MACHINE_ID --group Work/Production --add-tag gpu --json
-.\.venv\Scripts\python.exe app.py organize --machine MACHINE_ID --ungrouped --json
-.\.venv\Scripts\python.exe app.py groups rename Work Projects --json
-.\.venv\Scripts\python.exe app.py import-ssh --apply --host SSH_ALIAS --group Lab --json
-.\.venv\Scripts\python.exe app.py favorites set 1 --machine MACHINE_ID --json
-.\.venv\Scripts\python.exe app.py favorites set 2 --local --json
-.\.venv\Scripts\python.exe app.py command MACHINE_ID --json
-.\.venv\Scripts\python.exe app.py doctor --json
+```sh
+ssh-sessions doctor --json
+ssh-sessions list --json
+ssh-sessions groups list --json
+ssh-sessions command MACHINE_ID --json
 ```
 
-Repeat `--machine` for bulk edits. `--add-tag` and `--remove-tag` also repeat.
-`command` prints the SSH argument list for inspection. `list`, `groups`,
-`organize`, `favorites` and `import-ssh` manage catalog data; the interactive
-picker starts sessions. Global `--catalog` and `--state-dir` options come before
-the command.
+`command` prints the SSH arguments for a saved machine. Get its ID from `list`.
+[More commands](docs/usage.md#commands-for-scripts-and-agents) cover import,
+favorites and bulk organization. [AGENTS.md](AGENTS.md) maps the code and checks.
 
-[Development guide](AGENTS.md) · [Verification](docs/verification.md) ·
-[Backlog](docs/backlog.md) · [MIT license](LICENSE)
+## Windows Terminal integration
+
+[Terminal Workspace](https://github.com/brant92good/terminal-workspace) can make
+this picker your new-tab screen and give local PowerShell its own shortcut.
+It also pairs remote tabs with [Port Forward TUI](https://github.com/brant92good/port-forward-tui)
+for reaching remote web apps. SSH Sessions can be installed on its own.
+
+## Testing
+
+CI runs on Windows, Ubuntu and macOS with Python 3.12/3.13. It checks keyboard
+flows, catalog changes, installation and updates. Real SSH login, logout back
+to the picker and the local PowerShell shortcut were also checked on Windows.
+[Verification and reproduction](docs/verification.md) records the details.
+
+Found a rough edge? [Open an issue](https://github.com/brant92good/ssh-session-tui/issues)
+with your OS, terminal app and what you pressed. Setup reports from macOS and
+Linux are especially useful while those platforms are in beta.
+
+[Data format](docs/design.md) · [Backlog](docs/backlog.md) · [MIT license](LICENSE)

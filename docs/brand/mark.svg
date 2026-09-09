@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">SSH Sessions logo</title>
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="#152b39" stroke="#65d6be" stroke-width="2"/>
+  <g fill="none" stroke="#f2f5ee" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M39 47 54 59 39 71M63 71h15"/><path d="M76 43V32h19M76 85v11h19" stroke="#65d6be"/><circle cx="101" cy="32" r="6" fill="#65d6be" stroke="none"/><circle cx="101" cy="96" r="6" fill="#65d6be" stroke="none"/></g>
+</svg>

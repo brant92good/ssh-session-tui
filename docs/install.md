@@ -1,5 +1,9 @@
 # Install SSH Sessions
 
+**macOS / Linux: beta.** Automated installation, PATH setup, update and local-shell
+checks pass. Real remote login in desktop terminal apps still needs qualification.
+See [verification](verification.md).
+
 The README's one-command installers download uv 0.10.10 from Astral, then
 Python 3.12 and the tagged SSH Sessions 0.5.0 package from this repository.
 They do not use an existing project virtual environment or require Git.

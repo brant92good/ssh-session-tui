@@ -1,5 +1,9 @@
 # Verification
 
+**macOS and Linux support is beta.** Installation, update and local-shell tests
+pass in CI; real remote login in desktop terminal apps remains unqualified.
+
+
 ## Portable installer and terminal checks (0.5)
 
 On September 9, 2026 the expanded 83-test suite passed on Windows (80 run,
@@ -16,7 +20,8 @@ PATH updates were disabled for these local tests. Windows also exercised
 Windows PowerShell 5 launched through Python from PowerShell 7; the installer
 loads its own host's Security module to avoid the inherited module-path conflict.
 
-CI runs the suite on Windows, Ubuntu and macOS with Python 3.12/3.13, plus a
+[The September 9 CI run](https://github.com/brant92good/ssh-session-tui/actions/runs/34352141990)
+passed on Windows, Ubuntu and macOS 14 with Python 3.12/3.13, plus a
 fresh install/update check per OS. Its Unix pseudo-terminal tests qualify the
 local shell handoff, not every macOS/Linux terminal application. Live remote SSH
 handoff has been checked on Windows as recorded below; Linux/macOS real-server
@@ -132,5 +137,5 @@ does not depend on external font requests. Every screenshot uses example data.
 Copy was reviewed across the picker, forms, import, route/favorite/group menus,
 sync messages, CLI help and documentation. Main screens describe available
 actions; data/schema and authentication behavior remain in the reference docs.
-No visible desktop window was activated for this update. Linux and macOS remain
-unverified; see the [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).
+No visible desktop window was activated for this update. At version 0.4, Linux
+and macOS were unverified; version 0.5 CI results are recorded above. See the [platform plan](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).
