@@ -1,12 +1,11 @@
 //! Explicit catalog-only Git synchronization. Nothing calls this during startup.
+mod process;
 use crate::catalog::{Catalog, absolute, decode, locked};
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use std::{
-    io::Read,
     path::PathBuf,
     process::{Command, Stdio},
-    thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 pub struct GitSync<'a> {
@@ -31,43 +30,7 @@ fn invoke(root: &std::path::Path, args: &[&str]) -> Result<Output> {
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x08000000);
-    }
-    let mut child = command
-        .spawn()
-        .context("Git was not found. Install Git to sync this catalog.")?;
-    let mut stdout = child.stdout.take().context("Missing Git stdout")?;
-    let mut stderr = child.stderr.take().context("Missing Git stderr")?;
-    // Drain both pipes while waiting, so a large error cannot block the timeout.
-    let out = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stdout.read_to_end(&mut bytes).map(|_| bytes)
-    });
-    let err = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stderr.read_to_end(&mut bytes).map(|_| bytes)
-    });
-    let deadline = Instant::now() + Duration::from_secs(45);
-    let code = loop {
-        if let Some(status) = child.try_wait()? {
-            break status.code().unwrap_or(1);
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            bail!("Git timed out. Check the connection and try again.");
-        }
-        thread::sleep(Duration::from_millis(30));
-    };
-    let stdout = out
-        .join()
-        .map_err(|_| anyhow::anyhow!("Git output reader failed"))??;
-    let stderr = err
-        .join()
-        .map_err(|_| anyhow::anyhow!("Git error reader failed"))??;
+    let (code, stdout, stderr) = process::run(command, Duration::from_secs(45))?;
     Ok(Output {
         code,
         stdout: String::from_utf8_lossy(&stdout).into_owned(),

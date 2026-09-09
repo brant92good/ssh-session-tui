@@ -6,7 +6,7 @@ physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
 
-On September 10, 2026, the 30 native tests passed locally on Windows. These cover
+On September 10, 2026, the 32 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,
 groups, imports, explicit fallback, modal input and guarded Git sync. Clippy
 passed with warnings denied, including the screenshot exporter.
@@ -15,6 +15,19 @@ Independent review added regressions for merge-only unrelated files in Git
 publication, cross-view favorite changes, import group preservation and group
 search. Catalog-only merges remain supported; unrelated changes in any merge
 parent comparison are refused before publication.
+
+The Git subprocess runner polls both output pipes within the same deadline as
+the process, with a 16 MiB limit per stream and no detached reader threads. Tests
+fill both pipes and leave a descendant holding them after its parent exits; the
+timeout returns and terminates that owned descendant. One ignored test entry is
+the subprocess fixture these tests launch, not a skipped qualification case.
+
+Windows starts Git suspended, assigns a job that terminates its processes when
+closed, then resumes it. Unix uses a fresh process group. A Unix program that
+deliberately creates a separate session/process group is outside that group
+cleanup guarantee; it cannot keep this app blocked on a pipe-reader join. Git
+hooks that intentionally start persistent background processes should be run
+outside the app's bounded sync operation.
 
 The new Windows test owns a ConPTY without opening a desktop window. It launches
 the actual native picker, opens Local terminal, executes nonce output, interrupts
