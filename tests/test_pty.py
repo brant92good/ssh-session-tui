@@ -17,12 +17,16 @@ class UnixTerminalTests(unittest.TestCase):
         # Start a fresh interpreter before forking the PTY. The full suite has
         # already created UI threads; forking that process is unsafe on macOS.
         if os.environ.get('SSH_SESSIONS_PTY_CHILD') != '1':
-            result = subprocess.run([sys.executable, str(Path(__file__).resolve())],
-                env=dict(os.environ, SSH_SESSIONS_PTY_CHILD='1'),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=45)
+            try:
+                result = subprocess.run([sys.executable, str(Path(__file__).resolve())],
+                    env=dict(os.environ, SSH_SESSIONS_PTY_CHILD='1'),
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=45)
+            except subprocess.TimeoutExpired as error:
+                self.fail('PTY harness timed out:\n' + (error.stdout or b'').decode(errors='replace'))
             self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace'))
             return
         import fcntl
+        import faulthandler
         import pty
         import struct
         import termios
@@ -41,11 +45,16 @@ class UnixTerminalTests(unittest.TestCase):
                     '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir)])
             received = bytearray()
             reaped = False
+            os.set_blocking(terminal, False)
+            faulthandler.dump_traceback_later(15, repeat=True)
             def expect(text, timeout=10):
                 deadline = time.monotonic() + timeout
                 while text.encode() not in received and time.monotonic() < deadline:
                     if select.select([terminal], [], [], .1)[0]:
-                        received.extend(os.read(terminal, 65536))
+                        try:
+                            received.extend(os.read(terminal, 65536))
+                        except BlockingIOError:
+                            pass
                 self.assertIn(text.encode(), received, received[-1500:].decode(errors='replace'))
                 del received[:received.index(text.encode()) + len(text.encode())]
             def marker():
@@ -79,13 +88,11 @@ class UnixTerminalTests(unittest.TestCase):
                     time.sleep(.05)
                 self.fail('Picker did not close after Q')
             finally:
-                # pty.fork creates this child's own session/process group.
-                try:
-                    os.killpg(pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
                 if not reaped:
                     try:
+                        # Only signal the still-owned child's private group.
+                        if os.getpgid(pid) == pid and pid != os.getpgrp():
+                            os.killpg(pid, signal.SIGKILL)
                         os.kill(pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
@@ -94,6 +101,7 @@ class UnixTerminalTests(unittest.TestCase):
                 except ChildProcessError:
                     pass
                 os.close(terminal)
+                faulthandler.cancel_dump_traceback_later()
 
 
 if __name__ == '__main__':
