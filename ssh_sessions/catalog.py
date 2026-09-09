@@ -212,7 +212,8 @@ class Catalog:
     def __init__(self, path, state_dir):
         self.path = Path(path).resolve()
         self.state_dir = Path(state_dir).resolve()
-        key = hashlib.sha256(str(self.path).casefold().encode()).hexdigest()[:24]
+        identity = str(self.path).casefold() if os.name == 'nt' else str(self.path)
+        key = hashlib.sha256(identity.encode()).hexdigest()[:24]
         self.lock_path = self.state_dir / (key + '.lock')
         self.device_path = self.state_dir / (key + '.device.json')
 

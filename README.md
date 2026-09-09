@@ -9,23 +9,33 @@ Organize servers by project or location, find a machine, and press Enter to conn
 
 ## Install
 
-You need Python 3.12+ and OpenSSH. These commands are for PowerShell on Windows:
+**Windows — paste into PowerShell:**
 
 ```powershell
-git clone https://github.com/brant92good/ssh-session-tui.git
-cd ssh-session-tui
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe app.py
+irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 | iex
 ```
+
+**macOS / Linux — paste into your terminal:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.sh | sh
+```
+
+Then run **`ssh-sessions`**. If the command is not found, open a new terminal.
+The installer downloads its own Python and dependencies; Python and Git do not
+need to be installed first. It adds the app command to your user PATH. Rerun
+the same command to update. Machines and device preferences are kept separately.
+
+Connecting needs the **OpenSSH client** (`ssh`). Git is optional and used only
+for catalog sync. Installation never asks for a server. [Setup details,
+noninteractive options and uninstall](docs/install.md).
 
 Press **A** to add a machine, or **I** to import hosts from your SSH config.
 Select a row and press **Enter**. SSH uses your existing login settings.
 After logout, you return to the list. **Local terminal** opens a shell on this
 computer; `exit` returns to the picker.
 
-Windows is tested. Linux/macOS validation is planned; see the
-[platform assessment](https://github.com/brant92good/terminal-workspace/blob/main/docs/platforms.md).
+See [verification](docs/verification.md) for the tested platforms and limits.
 
 ## Numbered favorites
 

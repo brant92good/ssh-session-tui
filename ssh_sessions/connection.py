@@ -29,12 +29,24 @@ def ssh_command(machine, route, executable=None, config=None):
 
 
 def local_command():
-    shell = shutil.which('pwsh.exe' if os.name == 'nt' else 'pwsh')
-    if shell:
-        return [shell, '-NoLogo']
     if os.name != 'nt':
-        return [os.environ.get('SHELL', '/bin/sh')]
-    raise ValueError('PowerShell 7 was not found. Install PowerShell 7 or open a local profile from Terminal.')
+        shell = os.environ.get('SHELL') or '/bin/sh'
+        executable = shutil.which(shell)
+        if not executable:
+            raise ValueError(f'Your configured shell was not found: {shell}. Check SHELL and try again.')
+        return [executable]
+    for name, arguments in (('pwsh.exe', ['-NoLogo']), ('powershell.exe', ['-NoLogo']), ('cmd.exe', [])):
+        shell = shutil.which(name)
+        if shell:
+            return [shell, *arguments]
+    raise ValueError('No local shell was found. Check that PowerShell or cmd is on PATH.')
+
+
+def local_shell_name():
+    try:
+        return os.path.basename(local_command()[0]).removesuffix('.exe')
+    except ValueError:
+        return 'Local shell'
 
 
 def run_session(command):

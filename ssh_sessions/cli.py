@@ -10,12 +10,18 @@ import subprocess
 import sys
 
 from .catalog import Catalog, CatalogError
-from .connection import local_command, run_session, set_title, ssh_command
+from .connection import local_command, local_shell_name, run_session, set_title, ssh_command
 from .ssh_import import connection_config
 
 
 def default_directory():
-    return Path(os.environ.get('LOCALAPPDATA', Path.home() / '.local/share')) / 'SSHSessions'
+    if os.name == 'nt':
+        base = os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData/Local'
+    elif sys.platform == 'darwin':
+        base = Path.home() / 'Library/Application Support'
+    else:
+        base = os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share'
+    return Path(base) / 'SSHSessions'
 
 
 def picker_loop(catalog, picker_factory=None, runner=run_session):
@@ -33,7 +39,7 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
         try:
             command = local_command() if choice.kind == 'local' else ssh_command(choice.machine, choice.route,
                 config=connection_config(catalog, choice.machine, choice.route))
-            set_title('Local PowerShell' if choice.kind == 'local' else f'{choice.machine.name} | {choice.route.name}')
+            set_title('Local ' + local_shell_name() if choice.kind == 'local' else f'{choice.machine.name} | {choice.route.name}')
             if choice.kind == 'connect':
                 print(f'Connecting to {choice.machine.name} via {choice.route.name} ({choice.route.host}:{choice.route.port})', flush=True)
             code = runner(command)
@@ -51,6 +57,8 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Browse, organize and connect to your SSH machines.')
+    from . import __version__
+    parser.add_argument('--version', action='version', version='SSH Sessions ' + __version__)
     parser.add_argument('--catalog', type=Path, default=default_directory() / 'catalog.json', help='Shared metadata JSON; point this at a file in your private Git repo')
     parser.add_argument('--state-dir', type=Path, default=default_directory() / 'device', help='Device-only preferences; keep outside your shared repository')
     commands = parser.add_subparsers(dest='command')
@@ -83,7 +91,7 @@ def main(argv=None):
     favorites.add_argument('slot', nargs='?', help='Favorite number 1–9 for set/remove')
     favorite_target = favorites.add_mutually_exclusive_group()
     favorite_target.add_argument('--machine', help='Exact machine ID from list --json')
-    favorite_target.add_argument('--local', action='store_true', help='Use local PowerShell')
+    favorite_target.add_argument('--local', action='store_true', help='Use the local shell')
     favorites.add_argument('--json', action='store_true')
     grouping = commands.add_parser('groups', help='List groups or rename a group and its subgroups')
     grouping.add_argument('action', choices=('list', 'rename'), nargs='?', default='list')
@@ -157,7 +165,8 @@ def main(argv=None):
         if options.command == 'doctor':
             checks = {'catalog_valid': True, 'machine_count': len(snapshot.machines),
                       'ssh_available': bool(shutil.which('ssh.exe' if os.name == 'nt' else 'ssh')),
-                      'git_available': bool(shutil.which('git')), 'local_pwsh_available': bool(shutil.which('pwsh'))}
+                      'git_available': bool(shutil.which('git')), 'local_pwsh_available': bool(shutil.which('pwsh')),
+                      'local_shell': local_shell_name()}
             catalog.preferences()
             from .favorites import Favorites
             Favorites(catalog).load()

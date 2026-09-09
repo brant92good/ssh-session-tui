@@ -11,6 +11,7 @@ from textual.widgets import Button, DataTable, Footer, Input, Label, Static
 
 from .catalog import Machine, Route, Snapshot, address, group_path, label, login, new_id, parse_tags, port_number
 from .favorites import LOCAL, Favorites, target_name
+from .connection import local_shell_name
 from .organization import edit_many, filtered, within
 from .sync import GitSync
 
@@ -130,7 +131,7 @@ class Help(ModalScreen):
                          'I: preview and import local SSH settings\n'
                          'S: Pull / Publish\n'
                          'F5: reload changes from another tab or editor\n'
-                         'Local terminal row or Ctrl+L: local PowerShell; Q: close the picker\n\n'
+                         'Local terminal row or Ctrl+L: local shell; Q: close the picker\n\n'
                          'Forms: Tab moves fields, Ctrl+S saves, Esc cancels.\n'
                          'Esc returns to the list.', markup=False)
 
@@ -336,7 +337,7 @@ class Picker(App[Choice]):
         for target in self.row_targets:
             machine = entries[target]
             if machine is None:
-                table.add_row('', keys.get(LOCAL, ''), 'Local terminal', '', 'PowerShell', 'This computer', key=LOCAL)
+                table.add_row('', keys.get(LOCAL, ''), 'Local terminal', '', local_shell_name(), 'This computer', key=LOCAL)
                 continue
             route = self.catalog.preferred(machine, preferences)
             table.add_row(Text('[x]' if machine.id in self.checked else '[ ]'), keys.get(machine.id, ''), Text(machine.name),
@@ -353,7 +354,7 @@ class Picker(App[Choice]):
         scope = 'All machines' if self.group_filter is None else self.group_filter or 'Ungrouped'
         self.query_one('#scope', Static).update(f'{scope} · {len(self.filtered_machines)} machines · {len(self.checked)} selected · G: groups · M: move · T: tags')
         self.query_one('#details', Static).update('Enter opens · F pins a favorite · R chooses a route · F1: help.' if self.row_targets else
-            'No matches. Esc clears the search; A adds a machine; Ctrl+L opens local PowerShell.')
+            'No matches. Esc clears the search; A adds a machine; Ctrl+L opens a local shell.')
 
     @on(Input.Changed, '#search')
     def search_changed(self):
@@ -371,7 +372,7 @@ class Picker(App[Choice]):
     @on(DataTable.RowHighlighted, '#machines')
     def show_destination(self, event):
         if str(event.row_key.value) == LOCAL:
-            self.query_one('#details', Static).update('Local PowerShell on this computer. Exit returns to this picker.\nEnter opens · F pins a favorite.')
+            self.query_one('#details', Static).update('Local shell on this computer. Exit returns to this picker.\nEnter opens · F pins a favorite.')
             return
         machine = next((m for m in self.filtered_machines if m.id == str(event.row_key.value)), None)
         if machine:

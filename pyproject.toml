@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ssh-session-tui"
-version = "0.4.0"
+version = "0.5.0"
 description = "A keyboard SSH machine picker with shared addresses and device-local routes"
 requires-python = ">=3.12"
 dependencies = ["textual==8.2.8"]

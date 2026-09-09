@@ -1,5 +1,27 @@
 # Verification
 
+## Portable installer and terminal checks (0.5)
+
+On September 9, 2026 the expanded 83-test suite passed on Windows (80 run,
+3 platform skips) and Ubuntu 24.04 through WSL2 (82 run, 1 platform skip).
+The Unix test uses an owned pseudo-terminal: open Local terminal from favorite
+2, print a nonce, interrupt `sleep` with Ctrl+C, print another nonce, resize,
+exit the shell and quit the returned picker. No visible window is opened.
+
+Fresh installer checks downloaded a managed Python runtime on Windows and
+WSL, installed into a path containing spaces and Chinese characters, ran the
+command with invalid PYTHONHOME and a conflicting project module, and repeated
+installation while preserving a temporary catalog and numbered favorite.
+PATH updates were disabled for these local tests. Windows also exercised
+Windows PowerShell 5 launched through Python from PowerShell 7; the installer
+loads its own host's Security module to avoid the inherited module-path conflict.
+
+CI runs the suite on Windows, Ubuntu and macOS with Python 3.12/3.13, plus a
+fresh install/update check per OS. Its Unix pseudo-terminal tests qualify the
+local shell handoff, not every macOS/Linux terminal application. Live remote SSH
+handoff has been checked on Windows as recorded below; Linux/macOS real-server
+login and desktop shortcut/focus behavior still need separate qualification.
+
 Checked September 9, 2026 on Windows 11 Pro build 26200, Windows Terminal
 1.24.11911.0, PowerShell 7.6.5 and Python 3.12.11. This is evidence from one
 desktop, not a guarantee for every terminal, SSH configuration or future version.
