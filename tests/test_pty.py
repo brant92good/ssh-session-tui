@@ -77,6 +77,7 @@ class UnixTerminalTests(unittest.TestCase):
                 os.write(terminal, b'exit\n')
                 expect('SSH Sessions')
                 expect('Local terminal')
+                expect('Local shell ended (exit 0)')
                 os.write(terminal, b'q')
                 deadline = time.monotonic() + 5
                 while time.monotonic() < deadline:
@@ -85,6 +86,13 @@ class UnixTerminalTests(unittest.TestCase):
                         reaped = True
                         self.assertEqual(os.waitstatus_to_exitcode(status), 0)
                         return
+                    # Terminal drivers can still be flushing their final screen.
+                    # Drain output while waiting, including on macOS PTYs.
+                    if select.select([terminal], [], [], .05)[0]:
+                        try:
+                            received.extend(os.read(terminal, 65536))
+                        except (BlockingIOError, OSError):
+                            pass
                     time.sleep(.05)
                 self.fail('Picker did not close after Q')
             finally:
@@ -96,11 +104,17 @@ class UnixTerminalTests(unittest.TestCase):
                         os.kill(pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
-                try:
-                    os.waitpid(pid, 0)
-                except ChildProcessError:
-                    pass
                 os.close(terminal)
+                # Close the PTY before waiting: macOS can hold a dying child's
+                # terminal close until the unread master side is released.
+                deadline = time.monotonic() + 3
+                while not reaped and time.monotonic() < deadline:
+                    try:
+                        waited, _ = os.waitpid(pid, os.WNOHANG)
+                        reaped = bool(waited)
+                    except ChildProcessError:
+                        break
+                    time.sleep(.05)
                 faulthandler.cancel_dump_traceback_later()
 
 
