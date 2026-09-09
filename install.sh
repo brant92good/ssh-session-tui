@@ -39,7 +39,16 @@ main() {
     "$app_python" -E -s -m ssh_sessions.install_support "$install_root"
     export UV_TOOL_BIN_DIR="$install_root/bin"
     if [ "${SSH_SESSIONS_NO_PATH:-0}" != 1 ]; then
-        "$uv_app" --no-config tool update-shell
+        # CI and shells launched from PowerShell can inherit PSModulePath.
+        # Configure the login shell, rather than guessing from inherited markers.
+        if ! (
+            unset NU_VERSION FISH_VERSION BASH_VERSION ZSH_VERSION KSH_VERSION PSModulePath
+            export SHELL="${SHELL:-/bin/bash}"
+            case "$SHELL" in */sh) export BASH_VERSION=installer;; esac
+            "$uv_app" --no-config tool update-shell
+        ); then
+            printf '%s\n' 'The app is installed. Open a new terminal if PATH was already configured; otherwise add the bin directory below to your shell PATH.'
+        fi
     fi
     "$app_python" -E -s -m ssh_sessions --version
     printf '\n%s\n' 'Ready. Run ssh-sessions. If it is not found, open a new terminal or run:'

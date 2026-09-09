@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import select
 import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -13,6 +14,14 @@ import uuid
 @unittest.skipIf(os.name == 'nt', 'Unix pseudo-terminal check')
 class UnixTerminalTests(unittest.TestCase):
     def test_local_shell_ctrl_c_resize_and_return_to_picker(self):
+        # Start a fresh interpreter before forking the PTY. The full suite has
+        # already created UI threads; forking that process is unsafe on macOS.
+        if os.environ.get('SSH_SESSIONS_PTY_CHILD') != '1':
+            result = subprocess.run([sys.executable, str(Path(__file__).resolve())],
+                env=dict(os.environ, SSH_SESSIONS_PTY_CHILD='1'),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=45)
+            self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace'))
+            return
         import fcntl
         import pty
         import struct
@@ -31,6 +40,7 @@ class UnixTerminalTests(unittest.TestCase):
                 os.execv(sys.executable, [sys.executable, '-E', '-s', str(root/'app.py'),
                     '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir)])
             received = bytearray()
+            reaped = False
             def expect(text, timeout=10):
                 deadline = time.monotonic() + timeout
                 while text.encode() not in received and time.monotonic() < deadline:
@@ -63,6 +73,7 @@ class UnixTerminalTests(unittest.TestCase):
                 while time.monotonic() < deadline:
                     waited, status = os.waitpid(pid, os.WNOHANG)
                     if waited:
+                        reaped = True
                         self.assertEqual(os.waitstatus_to_exitcode(status), 0)
                         return
                     time.sleep(.05)
@@ -73,8 +84,18 @@ class UnixTerminalTests(unittest.TestCase):
                     os.killpg(pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+                if not reaped:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                 try:
                     os.waitpid(pid, 0)
                 except ChildProcessError:
                     pass
                 os.close(terminal)
+
+
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    unittest.main()

@@ -50,7 +50,8 @@ def main():
             import winreg
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as key:
                 user_path = winreg.QueryValueEx(key, 'Path')[0]
-            assert str(installed / 'bin').casefold() in user_path.casefold()
+            assert any(Path(entry).resolve() == (installed / 'bin').resolve()
+                       for entry in user_path.split(';') if entry)
         else:
             found = subprocess.check_output([os.environ.get('SHELL') or '/bin/sh', '-l', '-c',
                                              'command -v ssh-sessions'], text=True).strip()
