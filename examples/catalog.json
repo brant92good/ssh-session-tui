@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "machines": [
+    {
+      "id": "workstation",
+      "name": "Workstation",
+      "user": "developer",
+      "routes": [
+        {"id": "lan", "name": "Home LAN", "host": "192.0.2.10", "port": 22},
+        {"id": "vpn", "name": "Private network", "host": "workstation.example.test", "port": 22}
+      ]
+    },
+    {
+      "id": "build",
+      "name": "Build server",
+      "user": "builder",
+      "routes": [{"id": "direct", "name": "Office network", "host": "build.example.test", "port": 2222}]
+    },
+    {
+      "id": "demo",
+      "name": "Demo VM",
+      "user": "dev",
+      "routes": [{"id": "lan", "name": "Lab LAN", "host": "192.0.2.30", "port": 22}]
+    }
+  ]
+}
