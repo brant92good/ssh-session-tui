@@ -1,0 +1,41 @@
+name: Native Rust checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, macos-14, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Prepare build toolchain
+        run: rustup toolchain install 1.94.0 --profile minimal --component clippy --component rustfmt
+      - run: cargo +1.94.0 fmt --check
+      - run: cargo +1.94.0 test --locked
+      - run: cargo +1.94.0 clippy --locked --all-targets -- -D warnings
+      - run: cargo +1.94.0 build --release --locked
+      - name: Compare legacy file formats and locks (developer check only)
+        shell: bash
+        run: |
+          binary=target/release/ssh-sessions
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/check_native_compat.py --binary "$binary"
+      - name: Real local-shell handoff, interrupt, resize and return
+        if: runner.os != 'Windows'
+        shell: bash
+        run: SSH_SESSIONS_NATIVE_BINARY="$PWD/target/release/ssh-sessions" python tests/test_pty.py
+      - name: Keep native build for installation checks
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ssh-sessions-${{ matrix.os }}
+          path: |
+            target/release/ssh-sessions
+            target/release/ssh-sessions.exe
+          if-no-files-found: error

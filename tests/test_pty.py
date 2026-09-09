@@ -41,8 +41,9 @@ class UnixTerminalTests(unittest.TestCase):
             if pid == 0:
                 os.environ.update(TERM='xterm-256color', SHELL='/bin/sh', PS1='ssh-test-ready> ')
                 os.environ.pop('ENV', None)
-                os.execv(sys.executable, [sys.executable, '-E', '-s', str(root/'app.py'),
-                    '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir)])
+                native = os.environ.get('SSH_SESSIONS_NATIVE_BINARY')
+                command = [str(Path(native).resolve())] if native else [sys.executable, '-E', '-s', str(root/'app.py')]
+                os.execv(command[0], [*command, '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir)])
             received = bytearray()
             reaped = False
             os.set_blocking(terminal, False)

@@ -1,0 +1,208 @@
+//! Explicit catalog-only Git synchronization. Nothing calls this during startup.
+use crate::catalog::{Catalog, absolute, decode, locked};
+use anyhow::{Context, Result, bail, ensure};
+use std::{
+    io::Read,
+    path::PathBuf,
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
+
+pub struct GitSync<'a> {
+    catalog: &'a Catalog,
+    root: PathBuf,
+    relative: String,
+    remote: String,
+    remote_ref: String,
+}
+struct Output {
+    code: i32,
+    stdout: String,
+    stderr: String,
+}
+fn invoke(root: &std::path::Path, args: &[&str]) -> Result<Output> {
+    let mut command = Command::new("git");
+    command
+        .args(args)
+        .current_dir(root)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GCM_INTERACTIVE", "Never")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let mut child = command
+        .spawn()
+        .context("Git was not found. Install Git to sync this catalog.")?;
+    let mut stdout = child.stdout.take().context("Missing Git stdout")?;
+    let mut stderr = child.stderr.take().context("Missing Git stderr")?;
+    // Drain both pipes while waiting, so a large error cannot block the timeout.
+    let out = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.read_to_end(&mut bytes).map(|_| bytes)
+    });
+    let err = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stderr.read_to_end(&mut bytes).map(|_| bytes)
+    });
+    let deadline = Instant::now() + Duration::from_secs(45);
+    let code = loop {
+        if let Some(status) = child.try_wait()? {
+            break status.code().unwrap_or(1);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            bail!("Git timed out. Check the connection and try again.");
+        }
+        thread::sleep(Duration::from_millis(30));
+    };
+    let stdout = out
+        .join()
+        .map_err(|_| anyhow::anyhow!("Git output reader failed"))??;
+    let stderr = err
+        .join()
+        .map_err(|_| anyhow::anyhow!("Git error reader failed"))??;
+    Ok(Output {
+        code,
+        stdout: String::from_utf8_lossy(&stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+    })
+}
+impl<'a> GitSync<'a> {
+    pub fn new(catalog: &'a Catalog) -> Result<Self> {
+        let output = invoke(
+            catalog
+                .path
+                .parent()
+                .context("Catalog needs a parent directory")?,
+            &["rev-parse", "--show-toplevel"],
+        )?;
+        ensure!(
+            output.code == 0,
+            "Place the catalog in a private Git repository before using sync."
+        );
+        let root = absolute(&PathBuf::from(output.stdout.trim()))?;
+        let relative = catalog
+            .path
+            .strip_prefix(&root)
+            .context("Catalog must be inside its Git repository.")?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut sync = Self {
+            catalog,
+            root,
+            relative,
+            remote: String::new(),
+            remote_ref: String::new(),
+        };
+        sync.git(&["ls-files", "--error-unmatch", "--", &sync.relative])?;
+        let branch = sync.git(&["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+        sync.remote = sync
+            .git(&[
+                "config",
+                "--get",
+                &format!("branch.{}.remote", branch.trim()),
+            ])?
+            .trim()
+            .into();
+        sync.remote_ref = sync
+            .git(&[
+                "config",
+                "--get",
+                &format!("branch.{}.merge", branch.trim()),
+            ])?
+            .trim()
+            .into();
+        ensure!(
+            !sync.remote.is_empty()
+                && sync.remote != "."
+                && !sync.remote.starts_with('-')
+                && sync.remote_ref.starts_with("refs/heads/"),
+            "Configure a remote upstream branch before syncing."
+        );
+        Ok(sync)
+    }
+    fn git(&self, args: &[&str]) -> Result<String> {
+        let output = invoke(&self.root, args)?;
+        ensure!(
+            output.code == 0,
+            "Git: {}",
+            if output.stderr.trim().is_empty() {
+                output.stdout.trim()
+            } else {
+                output.stderr.trim()
+            }
+        );
+        Ok(output.stdout)
+    }
+    fn validate_at(&self, revision: &str) -> Result<()> {
+        let raw = self.git(&["show", &format!("{revision}:{}", self.relative)])?;
+        decode(raw.as_bytes())?;
+        Ok(())
+    }
+    pub fn run(&self, action: &str) -> Result<String> {
+        let _guard = locked(&self.catalog.lock_path)?;
+        self.catalog.load()?;
+        if action == "pull" {
+            ensure!(
+                self.git(&["status", "--porcelain"])?.trim().is_empty(),
+                "Commit or move local changes before pulling."
+            );
+            self.git(&[
+                "-c",
+                "submodule.recurse=false",
+                "pull",
+                "--ff-only",
+                &self.remote,
+                &self.remote_ref,
+            ])?;
+            self.catalog.load()?;
+            return Ok("Catalog updated from its remote.".into());
+        }
+        ensure!(action == "publish", "Choose pull or publish.");
+        self.git(&["fetch", "--quiet", &self.remote, &self.remote_ref])?;
+        let behind = self.git(&["rev-list", "--count", "HEAD..@{upstream}"])?;
+        ensure!(
+            behind.trim() == "0",
+            "Remote changes are waiting. Pull before publishing."
+        );
+        let changed = self.git(&["log", "--format=", "--name-only", "@{upstream}..HEAD"])?;
+        ensure!(
+            changed
+                .lines()
+                .all(|line| line.is_empty() || line == self.relative),
+            "Unpublished commits include other files. Review and publish them outside this app first."
+        );
+        for revision in self.git(&["rev-list", "@{upstream}..HEAD"])?.lines() {
+            self.validate_at(revision)?;
+        }
+        self.git(&["add", "--", &self.relative])?;
+        let difference = invoke(
+            &self.root,
+            &["diff", "--cached", "--quiet", "--", &self.relative],
+        )?;
+        ensure!(
+            difference.code == 0 || difference.code == 1,
+            "Could not inspect the staged catalog."
+        );
+        if difference.code == 1 {
+            self.git(&[
+                "commit",
+                "--only",
+                "-m",
+                "Update SSH session catalog",
+                "--",
+                &self.relative,
+            ])?;
+        }
+        self.validate_at("HEAD")?;
+        self.git(&["push", &self.remote, &format!("HEAD:{}", self.remote_ref)])?;
+        Ok("Catalog published.".into())
+    }
+}
