@@ -16,12 +16,16 @@ def set_title(title):
         print('\033]0;' + safe + '\007', end='', flush=True)
 
 
-def ssh_command(machine, route, executable=None):
+def ssh_command(machine, route, executable=None, config=None):
     executable = executable or shutil.which('ssh.exe' if os.name == 'nt' else 'ssh')
     if not executable:
         raise ValueError('OpenSSH client is missing. Install it before connecting.')
-    return [executable, '-o', 'ConnectTimeout=10', '-o', 'ConnectionAttempts=1',
-            '-p', str(route.port), '-l', machine.user, '--', route.host]
+    args = [executable, '-o', 'ConnectTimeout=10', '-o', 'ConnectionAttempts=1']
+    if config is not None:
+        args += ['-F', str(config)]
+    if route.ssh_alias:
+        args += ['-o', 'HostName=' + route.host]
+    return [*args, '-p', str(route.port), '-l', machine.user, '--', route.ssh_alias or route.host]
 
 
 def local_command():

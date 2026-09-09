@@ -10,7 +10,7 @@ fallback confirmation, search, local-shell choice and preserving invalid form
 input for correction. Connection-loop tests verify that a failed attempt does
 not start another route and an explicitly chosen alternative does not change
 the device preference.
-All 31 tests passed locally. A fresh virtual environment in a path containing
+The initial 0.1 release passed 31 tests locally. A fresh virtual environment in a path containing
 spaces and Chinese characters also installed the built package successfully;
 its console entry, UI import, read-only commands and `pip check` passed from
 outside the source directory.
@@ -43,3 +43,25 @@ No SSH connection or real server data is used in those images.
 Cloudflare configuration, a second physical laptop, key enrollment/authorization
 tracking and agent-managed sessions are not tested or implemented here. Existing
 SSH configuration is delegated to OpenSSH. See [the backlog](backlog.md).
+
+## SSH import and easier new-tab keys (0.2)
+
+The expanded suite has 44 tests. Import checks cover static Include files,
+first-value and user/system precedence, wildcard exclusions, cycle detection,
+refusal to execute Match commands, stale previews, existing-machine route
+preservation, repeat imports and custom config paths remaining device-local.
+A generated static config is also compared with the installed OpenSSH client's
+output. That isolated fixture has no executable directives; production import
+never invokes SSH for discovery. Keyboard tests exercise I, Esc, Space, A and
+Enter through the actual import screen.
+
+The installed Terminal shortcut passed a real Ctrl+N -> picker -> SSH -> logout
+flow and Ctrl+Alt+N -> local PowerShell check in one small owned window. Existing
+tab identities were preserved. The importer previewed the owner's local config;
+one already-authorized alias was imported into a temporary catalog and successfully
+ran a harmless SSH command. The real config hash and saved machine list stayed
+unchanged. Cloudflare proxy preservation was checked in argv construction, not
+with a live Cloudflare login.
+
+The import screenshot uses `examples/ssh_config`; its selected-row checkmark,
+metadata columns and keyboard instructions were rendered and inspected.

@@ -117,9 +117,10 @@ class Help(ModalScreen):
                          '/: search; Enter returns to the list; Esc clears search\n'
                          'A / E / D: add, edit or delete a machine\n'
                          'R: manage routes and choose one for this device\n'
+                         'I: preview and import local SSH settings\n'
                          'S: explicit Git Pull / Publish\n'
                          'F5: reload changes from another tab or editor\n'
-                         'Ctrl+N: local PowerShell; Q: close the picker\n\n'
+                         'Ctrl+L: local PowerShell; Q: close the picker\n\n'
                          'Forms: Tab moves fields, Ctrl+S saves, Esc cancels.\n'
                          'An alternative route is never started without your choice.\n\n'
                          'Esc returns to the list.', markup=False)
@@ -188,7 +189,8 @@ class Routes(ModalScreen):
     def save_route(self, values, old):
         if values is None: return
         try:
-            route = Route.parse({'id': old.id if old else new_id(), 'name': values['route_name'], 'host': values['host'], 'port': values['port']})
+            route = Route.parse({'id': old.id if old else new_id(), 'name': values['route_name'], 'host': values['host'], 'port': values['port'],
+                                 'ssh_alias': old.ssh_alias if old else None})
             routes = tuple(route if r.id == route.id else r for r in self.machine.routes) if old else (*self.machine.routes, route)
             self.save_machine(replace(self.machine, routes=routes))
         except (OSError, ValueError) as error:
@@ -215,9 +217,9 @@ class Routes(ModalScreen):
 class Picker(App[Choice]):
     TITLE = 'SSH Sessions'
     ENABLE_COMMAND_PALETTE = False
-    BINDINGS = [Binding('f1', 'help', 'Help'), Binding('q', 'quit', 'Quit'), Binding('a', 'add', 'Add'), Binding('e', 'edit', 'Edit'),
+    BINDINGS = [Binding('f1', 'help', 'Help'), Binding('q', 'quit', 'Quit'), Binding('a', 'add', 'Add'), Binding('i', 'import_ssh', 'Import'), Binding('e', 'edit', 'Edit'),
                 Binding('r', 'routes', 'Routes'), Binding('d', 'delete', 'Delete'), Binding('/', 'search', 'Search'),
-                Binding('s', 'sync', 'Sync'), Binding('f5', 'reload', 'Reload'), Binding('ctrl+n', 'local', 'Local shell'),
+                Binding('s', 'sync', 'Sync'), Binding('f5', 'reload', 'Reload'), Binding('ctrl+l', 'local', 'Local shell'),
                 Binding('escape', 'clear_search', 'Back', show=False)]
     CSS = '''
     Screen { background: #101923; color: #dfebf2; }
@@ -237,6 +239,8 @@ class Picker(App[Choice]):
     .buttons Button { margin-right: 1; min-width: 12; }
     .routes-dialog { height: 22; }
     #routes { height: 1fr; min-height: 3; }
+    .import-dialog { width: 98; height: 27; }
+    #import-hosts { height: 1fr; min-height: 3; }
     '''
 
     def __init__(self, catalog, notice='', failed_machine=None):
@@ -324,6 +328,13 @@ class Picker(App[Choice]):
 
     def action_search(self): self.query_one('#search', Input).focus()
     def action_help(self): self.push_screen(Help())
+    def action_import_ssh(self):
+        from .import_ui import ImportSSH
+        def finished(message):
+            self.action_reload()
+            if message:
+                self.query_one('#notice', Static).update(message)
+        self.push_screen(ImportSSH(self.catalog), finished)
     def action_clear_search(self):
         self.query_one('#search', Input).value = ''
         self.query_one('#machines', DataTable).focus()

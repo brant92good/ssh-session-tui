@@ -29,6 +29,34 @@ After the session ends, it returns to the list.
 No host is required during installation. No account or Git repository is
 needed to use the picker locally. Run `app.py doctor` for local setup checks.
 
+## Import the machines you already use
+
+Press **I** to preview your local `~/.ssh/config` (on Windows,
+`%USERPROFILE%\.ssh\config`). Use **Space** to select hosts, **A** for all/none,
+then **Enter** to import. Enter with no selection imports the highlighted host.
+Esc cancels. Tab/Shift+Tab lets you enter a different config path; Enter reloads it.
+
+![Review local SSH hosts before importing](docs/screenshots/import.svg)
+
+*Actual import screen using the included example SSH config. No connections are opened.*
+
+Import copies names, addresses, usernames, ports and the SSH alias name. It keeps
+key choices, proxy commands and custom config paths on this device. Connecting
+through an imported route still uses its local alias, so existing Cloudflare,
+jump-host and key settings remain available to OpenSSH.
+
+Existing machines keep their names and routes. An alias for an already-saved
+address/user/port adds a route while preserving the previous device choice.
+Re-importing the same alias does not duplicate it. Changed imported values are
+flagged for review instead of overwriting your catalog. Import does not connect,
+publish to Git, or edit SSH settings.
+
+Named `Host` entries, wildcard defaults, negations and static `Include` files
+are supported. System defaults are considered for the normal user config.
+Conditional/dynamic address rules that cannot be resolved without executing
+commands are shown as needing manual setup. The importer never runs `ssh -G`,
+`Match exec`, proxies or key helpers. See [import details](docs/ssh-import.md).
+
 ## One server, different routes
 
 A **machine** is the server you want. A **route** is an address you can reach
@@ -57,10 +85,11 @@ reserved for a [later design discussion](docs/backlog.md).
 | /, then Enter | Search, then return to the machine list |
 | A / E / D | Add, edit or delete a machine |
 | R | Manage routes and select this device's route |
+| I | Preview and import local SSH settings |
 | S | Open explicit Pull / Publish options |
 | F5 | Reload changes from another tab or editor |
 | F1 | Show every shortcut, including those hidden in a narrow footer |
-| Ctrl+N | Use local PowerShell, then return to the picker |
+| Ctrl+L | Use local PowerShell, then return to the picker |
 | Q | Close the picker |
 
 Forms use Tab to move, Ctrl+S to save and Esc to cancel. Invalid fields keep
@@ -69,7 +98,7 @@ their entered values so you can correct them.
 ## Sync addresses through your own private Git repo
 
 The shared JSON contains only machine names, usernames and named address/port
-routes. Private keys, passwords and device route preferences are not catalog
+routes, plus optional SSH alias names for imported routes. Private keys, passwords and device route preferences are not catalog
 fields. The app does not synchronize credentials or claim to verify key
 authorization. Read the [data boundaries](docs/design.md) before setting up sync.
 
@@ -115,6 +144,9 @@ this app as a separate pinned submodule. In that checkout:
 The explicit `-SessionPicker` option makes new tabs open this picker and adds
 **Ctrl+Alt+N** for a normal local PowerShell tab. Existing R/P/L Herdr and Ports
 shortcuts keep their behavior. The paired workspace button remains separate.
+For an easier new-tab key, add `-NewTabShortcut ctrl+n`. This is optional because
+Terminal intercepts that key before shells and editors can use it; `none` removes
+the extra binding. Ctrl+Shift+T remains available.
 
 ## Inspect or test
 
@@ -122,6 +154,9 @@ shortcuts keep their behavior. The paired workspace button remains separate.
 .\.venv\Scripts\python.exe app.py list --json
 .\.venv\Scripts\python.exe app.py doctor --json
 .\.venv\Scripts\python.exe app.py command MACHINE_ID --route ROUTE_ID --json
+.\.venv\Scripts\python.exe app.py import-ssh --json
+# After reviewing the preview:
+.\.venv\Scripts\python.exe app.py import-ssh --apply --host YOUR_SSH_ALIAS --json
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 

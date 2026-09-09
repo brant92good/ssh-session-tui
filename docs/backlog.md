@@ -3,9 +3,10 @@
 The current priority is a reliable TUI selector and correct private catalog.
 These items are intentionally not implemented as part of that first version.
 
-- **Local SSH configuration ownership.** Whether to read, import, generate or
-  compose config files; precedence of Host/Match/Include; platform differences;
-  and how existing ProxyCommand/ProxyJump choices should be represented.
+- **Local SSH configuration ownership.** Read-only preview/import is now implemented
+  ([scope](ssh-import.md)). Generating, composing and modifying config files,
+  richer conditional evaluation, and authoring ProxyCommand/ProxyJump settings
+  still need the later design discussion.
 - **Agent-heavy SSH use.** Agents may open more sessions than humans. Decide
   session identity, connection reuse, concurrency, approval boundaries, audit
   records and how agents consume local configuration before designing APIs

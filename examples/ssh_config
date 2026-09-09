@@ -1,0 +1,14 @@
+# Demonstration metadata; these addresses are not real servers.
+Host workstation
+    HostName 192.0.2.10
+    User developer
+    IdentityFile ~/.ssh/id_ed25519
+
+Host build
+    HostName build.example.test
+    User builder
+    Port 2222
+
+Host demo-vm
+    HostName 192.0.2.30
+    User dev

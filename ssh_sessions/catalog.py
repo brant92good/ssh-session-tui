@@ -63,11 +63,13 @@ class Route:
     name: str
     host: str
     port: int = 22
+    ssh_alias: str | None = None
 
     @classmethod
     def parse(cls, data):
-        fields(data, ('id', 'name', 'host', 'port'))
-        return cls(identifier(data['id']), label(data['name'], 'Route name'), address(data['host']), port_number(data['port']))
+        fields(data, ('id', 'name', 'host', 'port', 'ssh_alias'), ('id', 'name', 'host', 'port'))
+        alias = address(data['ssh_alias']) if data.get('ssh_alias') is not None else None
+        return cls(identifier(data['id']), label(data['name'], 'Route name'), address(data['host']), port_number(data['port']), alias)
 
 
 @dataclass(frozen=True)
@@ -108,7 +110,12 @@ def decode(raw):
 
 
 def encode(machines):
-    raw = (json.dumps({'version': 1, 'machines': [asdict(m) for m in machines]}, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    rows = [asdict(m) for m in machines]
+    for machine in rows:
+        for route in machine['routes']:
+            if route['ssh_alias'] is None:
+                del route['ssh_alias']
+    raw = (json.dumps({'version': 1, 'machines': rows}, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
     decode(raw)
     return raw
 

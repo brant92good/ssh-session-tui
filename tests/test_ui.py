@@ -2,10 +2,12 @@ from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from textual.widgets import DataTable, Input
 from ssh_sessions.catalog import Catalog
 from ssh_sessions.ui import Form, Picker, Routes
+from ssh_sessions.import_ui import ImportSSH
 from test_catalog import sample
 
 
@@ -57,7 +59,7 @@ class PickerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one('#machines', DataTable).row_count, 0)
             await pilot.press('escape')
             self.assertEqual(app.query_one('#machines', DataTable).row_count, 1)
-            await pilot.press('ctrl+n')
+            await pilot.press('ctrl+l')
         self.assertEqual(app.return_value.kind, 'local')
 
     async def test_keyboard_add_machine(self):
@@ -93,3 +95,24 @@ class PickerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.screen.query_one('#name', Input).value, 'Draft machine')
             self.assertEqual(len(self.catalog.load().machines), 1)
             await pilot.press('escape', 'q')
+
+    async def test_keyboard_import_preview_selection_and_escape(self):
+        config = Path(self.temporary.name) / 'config'
+        config.write_text('Host one\n HostName 192.0.2.40\n User dev\nHost two\n HostName 192.0.2.50\n User dev\n', encoding='utf-8')
+        app = Picker(self.catalog)
+        with patch('ssh_sessions.import_ui.default_config', return_value=config):
+            async with app.run_test(size=(100, 32)) as pilot:
+                await pilot.press('i')
+                await pilot.pause()
+                self.assertIsInstance(app.screen, ImportSSH)
+                self.assertEqual(len(self.catalog.load().machines), 1)
+                await pilot.press('escape')
+                self.assertEqual(len(self.catalog.load().machines), 1)
+                await pilot.press('i', 'space', 'enter')
+                await pilot.pause()
+                self.assertEqual([m.name for m in self.catalog.load().machines], ['Work box 開發', 'one'])
+                self.assertIsNone(app.return_value)
+                await pilot.press('i', 'a', 'enter')
+                await pilot.pause()
+                self.assertEqual(len(self.catalog.load().machines), 3)
+                await pilot.press('q')

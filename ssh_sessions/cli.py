@@ -11,6 +11,7 @@ import sys
 
 from .catalog import Catalog, CatalogError
 from .connection import local_command, run_session, set_title, ssh_command
+from .ssh_import import connection_config
 
 
 def default_directory():
@@ -30,7 +31,8 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
             return 0
         failed = None
         try:
-            command = local_command() if choice.kind == 'local' else ssh_command(choice.machine, choice.route)
+            command = local_command() if choice.kind == 'local' else ssh_command(choice.machine, choice.route,
+                config=connection_config(catalog, choice.machine, choice.route))
             set_title('Local PowerShell' if choice.kind == 'local' else f'{choice.machine.name} | {choice.route.name}')
             if choice.kind == 'connect':
                 print(f'Connecting to {choice.machine.name} via {choice.route.name} ({choice.route.host}:{choice.route.port})', flush=True)
@@ -64,11 +66,31 @@ def main(argv=None):
     command.add_argument('machine', help='Machine ID or exact name')
     command.add_argument('--route', help='Route ID or exact name; required when this device has no preference')
     command.add_argument('--json', action='store_true')
+    importing = commands.add_parser('import-ssh', help='Preview local SSH hosts; import only with --apply and --host NAME or --all')
+    importing.add_argument('--config', type=Path, help='Read a custom SSH config; its path stays on this device')
+    importing.add_argument('--host', action='append', default=[], help='Alias to import; repeat for multiple hosts')
+    importing.add_argument('--all', action='store_true', help='Select all entries without unresolved metadata')
+    importing.add_argument('--apply', action='store_true', help='Save selected metadata after review; does not connect or publish')
+    importing.add_argument('--json', action='store_true')
     options = parser.parse_args(argv)
     structured = getattr(options, 'json', False)
     try:
         catalog = Catalog(options.catalog, options.state_dir)
         snapshot = catalog.load()
+        if options.command == 'import-ssh':
+            from .ssh_import import scan_ssh, import_status, import_selected
+            scan = scan_ssh(options.config)
+            rows = [{**asdict(entry), 'status': import_status(snapshot.machines, entry)} for entry in scan.entries]
+            result = {'ok': True, 'source': str(scan.config), 'hosts': rows, 'applied': False}
+            if options.apply:
+                selected = [e.alias for e in scan.entries if import_status(snapshot.machines, e) in
+                    ('Ready to import', 'Already imported (select to bind this device)')] if options.all else options.host
+                result.update(import_selected(catalog, scan, selected, snapshot.revision), applied=True)
+            print(json.dumps(result, ensure_ascii=True) if structured else '\n'.join(
+                [f"{r['alias']} | {r['user']}@{r['host']}:{r['port']} | {r['status']}" for r in rows] +
+                (['Imported selected hosts. SSH config and keys were not changed.'] if options.apply else
+                 ['Preview only. Use --apply with --host NAME or --all to import; nothing was saved or connected.'])))
+            return 0
         if options.command == 'doctor':
             checks = {'catalog_valid': True, 'machine_count': len(snapshot.machines),
                       'ssh_available': bool(shutil.which('ssh.exe' if os.name == 'nt' else 'ssh')),
@@ -116,7 +138,7 @@ def main(argv=None):
                 route = catalog.preferred(machine)
             if route is None:
                 raise CatalogError('Choose a route explicitly with --route or in the TUI.')
-            args = ssh_command(machine, route)
+            args = ssh_command(machine, route, config=connection_config(catalog, machine, route))
             print(json.dumps({'ok': True, 'argv': args}) if structured else (subprocess.list2cmdline(args) if os.name == 'nt' else shlex.join(args)))
             return 0
         return picker_loop(catalog)

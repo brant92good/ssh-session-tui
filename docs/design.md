@@ -18,7 +18,7 @@ Your private settings repo
 
 Only `version` and `machines` appear at the catalog root. Each machine has
 `id`, `name`, `user`, and `routes`. Each route has `id`, `name`, `host`, and
-`port`. See [the example](../examples/catalog.json). IDs remain stable when a
+`port`, and optionally an imported `ssh_alias` name. See [the example](../examples/catalog.json). IDs remain stable when a
 display name changes. Unknown fields, invalid destinations, duplicate IDs and
 malformed files are rejected; they are not silently repaired or overwritten.
 
@@ -32,7 +32,8 @@ Catalog writes use a device-local file lock, a revision check and atomic file
 replacement. A second tab with an older snapshot must reload instead of
 overwriting a newer edit. Git synchronizes the shared file; its normal conflict
 rules still apply across computers. Device preference files are never added by
-the sync command. No SSH config or private/public key files are read for export.
+the sync command. Explicit SSH import reads config metadata, never private/public
+key files. Custom config paths remain device-local. See [import boundaries](ssh-import.md).
 
 The picker exits its alternate screen before starting the installed SSH client
 with an argument list, not a shell command string. It supplies the chosen host,

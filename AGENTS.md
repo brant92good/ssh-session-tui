@@ -10,6 +10,9 @@ Examples and screenshots use demonstration addresses only. Catalog validation
 allows only the documented metadata fields; device preferences live outside
 Git. Never change SSH config, authorized_keys, known_hosts or key-agent state
 as part of setup or sync. The existing SSH client owns authentication.
+Explicit read-only SSH import is supported in ssh_sessions/ssh_import.py. Never
+use ssh -G for discovery: Match exec may execute commands. Preserve aliases so
+local proxy/key settings apply; custom config paths belong only in local state.
 
 A connection failure must not automatically try another route or replace the
 device's preferred route. Show alternatives and wait for the user's choice.
