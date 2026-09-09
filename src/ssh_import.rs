@@ -366,7 +366,7 @@ fn bindings(catalog: &Catalog) -> Result<BTreeMap<String, String>> {
         raw.len() <= 2 * 1024 * 1024,
         "Local SSH paths file is too large."
     );
-    serde_json::from_slice(&raw)
+    serde_json::from_slice(raw.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&raw))
         .context("Local SSH import paths are invalid. Keep a backup before repairing the file.")
 }
 #[derive(Debug, Serialize)]

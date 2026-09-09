@@ -1,60 +1,73 @@
 #!/bin/sh
-# Install a released SSH Sessions package without a preinstalled Python or Git.
+# Download the native app; no Python, Git or Rust compiler is used.
 set -eu
 
-main() {
-    package=${SSH_SESSIONS_PACKAGE:-https://github.com/brant92good/ssh-session-tui/archive/refs/tags/v0.5.0.tar.gz}
-    install_root=${SSH_SESSIONS_INSTALL_DIR:-${XDG_DATA_HOME:-"$HOME/.local/share"}/ssh-sessions-install}
-    case "$install_root" in /*) ;; *) printf '%s\n' 'SSH_SESSIONS_INSTALL_DIR must be an absolute path.' >&2; return 1;; esac
-    if [ -d "$install_root" ] && [ ! -f "$install_root/.ssh-sessions-installer" ] && [ -n "$(ls -A "$install_root")" ]; then
-        printf '%s\n' "Choose an empty install directory: $install_root already contains other files." >&2
-        return 1
-    fi
-    mkdir -p "$install_root"
-    printf '%s\n' 'ssh-session-tui' > "$install_root/.ssh-sessions-installer"
-    export UV_UNMANAGED_INSTALL="$install_root/uv"
-    export UV_TOOL_DIR="$install_root/tools"
-    export UV_TOOL_BIN_DIR="$install_root/tool-bin"
-    export UV_PYTHON_INSTALL_DIR="$install_root/python"
-    export UV_PYTHON_INSTALL_BIN=0 UV_PYTHON_INSTALL_REGISTRY=0 UV_NO_CONFIG=1
-    export UV_CONCURRENT_DOWNLOADS=2 UV_CONCURRENT_BUILDS=1 UV_CONCURRENT_INSTALLS=2
-    uv_app="$install_root/uv/uv"
-    if [ ! -x "$uv_app" ]; then
-        printf '%s\n' 'Preparing the installer...'
-        download=$(mktemp)
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsSL --retry 2 https://astral.sh/uv/0.10.10/install.sh -o "$download"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -q https://astral.sh/uv/0.10.10/install.sh -O "$download"
-        else
-            printf '%s\n' 'Install curl or wget, then run this installer again.' >&2
-            return 1
-        fi
-        sh "$download"
-        rm -f "$download"
-    fi
-    printf '%s\n' 'Installing SSH Sessions and its Python runtime...'
-    "$uv_app" --no-config --quiet tool install --managed-python --python 3.12 --reinstall --force "$package"
-    app_python="$UV_TOOL_DIR/ssh-session-tui/bin/python"
-    "$app_python" -E -s -m ssh_sessions.install_support "$install_root"
-    export UV_TOOL_BIN_DIR="$install_root/bin"
-    if [ "${SSH_SESSIONS_NO_PATH:-0}" != 1 ]; then
-        # CI and shells launched from PowerShell can inherit PSModulePath.
-        # Configure the login shell, rather than guessing from inherited markers.
-        if ! (
-            unset NU_VERSION FISH_VERSION BASH_VERSION ZSH_VERSION KSH_VERSION PSModulePath
-            export SHELL="${SHELL:-/bin/bash}"
-            case "$SHELL" in */sh) export BASH_VERSION=installer;; esac
-            "$uv_app" --no-config tool update-shell
-        ); then
-            printf '%s\n' 'The app is installed. Open a new terminal if PATH was already configured; otherwise add the bin directory below to your shell PATH.'
-        fi
-    fi
-    "$app_python" -E -s -m ssh_sessions --version
-    printf '\n%s\n' 'Ready. Run ssh-sessions. If it is not found, open a new terminal or run:'
-    printf '  "%s/bin/ssh-sessions"\n' "$install_root"
-    printf '%s\n' 'Press A to add a machine, or I to import SSH hosts.'
+download() {
+    if command -v curl >/dev/null 2>&1; then curl --proto '=https' --tlsv1.2 -fsSL --retry 2 "$1" -o "$2"
+    elif command -v wget >/dev/null 2>&1; then wget -q "$1" -O "$2"
+    else printf '%s\n' 'Install curl or wget and try again.' >&2; return 1; fi
 }
-
-# The script also works when piped into sh; downloads complete before execution.
+checksum() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d ' ' -f 1
+    elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f 1
+    else printf '%s\n' 'A SHA-256 tool (sha256sum or shasum) is required.' >&2; return 1; fi
+}
+main() {
+    version=${SSH_SESSIONS_VERSION:-0.6.0}
+    case "$version" in ''|*[!A-Za-z0-9.-]*) printf '%s\n' 'Invalid release version.' >&2; return 1;; esac
+    install_root=${SSH_SESSIONS_INSTALL_DIR:-${XDG_DATA_HOME:-"$HOME/.local/share"}/ssh-sessions-install}
+    case "$install_root" in /*) ;; *) printf '%s\n' 'SSH_SESSIONS_INSTALL_DIR must be absolute.' >&2; return 1;; esac
+    if [ -d "$install_root" ] && [ ! -f "$install_root/.ssh-sessions-installer" ] && [ -n "$(ls -A "$install_root")" ]; then
+        printf '%s\n' "Choose an empty install directory: $install_root contains other files." >&2; return 1
+    fi
+    if [ -f "$install_root/.ssh-sessions-installer" ] && [ "$(cat "$install_root/.ssh-sessions-installer")" != ssh-session-tui ]; then
+        printf '%s\n' 'This install directory belongs to another application.' >&2; return 1
+    fi
+    case "$(uname -s)/$(uname -m)" in
+        Darwin/arm64) target=aarch64-apple-darwin;;
+        Darwin/x86_64) target=x86_64-apple-darwin;;
+        Linux/x86_64) target=x86_64-unknown-linux-musl;;
+        Linux/aarch64|Linux/arm64) target=aarch64-unknown-linux-musl;;
+        *) printf '%s\n' 'No prebuilt release is available for this operating system/CPU.' >&2; return 1;;
+    esac
+    binary=${SSH_SESSIONS_BINARY:-https://github.com/brant92good/ssh-session-tui/releases/download/v$version/ssh-sessions-$target}
+    expected=${SSH_SESSIONS_SHA256:-}
+    mkdir -p "$install_root"
+    stage=$(mktemp -d "$install_root/.install.XXXXXXXX")
+    trap 'case "$stage" in "$install_root"/.install.*) rm -rf -- "$stage";; esac' 0
+    case "$binary" in
+        https://*) download "$binary" "$stage/ssh-sessions"; if [ -z "$expected" ]; then download "$binary.sha256" "$stage/checksum"; expected=$(cut -d ' ' -f 1 "$stage/checksum" | tr -d '\r\n'); fi;;
+        *) if [ -f "$binary" ] && [ -n "$expected" ]; then cp "$binary" "$stage/ssh-sessions"; else printf '%s\n' 'Use an HTTPS binary URL, or a local file with SSH_SESSIONS_SHA256.' >&2; return 1; fi;;
+    esac
+    case "$expected" in ''|*[!a-fA-F0-9]*) printf '%s\n' 'Invalid release checksum.' >&2; return 1;; esac
+    [ "${#expected}" -eq 64 ] || { printf '%s\n' 'Invalid release checksum length.' >&2; return 1; }
+    actual=$(checksum "$stage/ssh-sessions")
+    [ "$actual" = "$(printf '%s' "$expected" | tr 'A-F' 'a-f')" ] || { printf '%s\n' 'Download checksum mismatch. Existing installation preserved.' >&2; return 1; }
+    chmod 755 "$stage/ssh-sessions"
+    [ "$("$stage/ssh-sessions" --version)" = "ssh-sessions $version" ] || { printf '%s\n' 'The downloaded app could not run or has the wrong version.' >&2; return 1; }
+    mkdir -p "$install_root/bin"
+    if [ -f "$install_root/bin/ssh-sessions" ]; then cp -p "$install_root/bin/ssh-sessions" "$install_root/bin/ssh-sessions.previous"; fi
+    mv -f "$stage/ssh-sessions" "$install_root/bin/ssh-sessions"
+    printf '%s\n' ssh-session-tui > "$install_root/.ssh-sessions-installer"
+    printf '%s\n' "$version" > "$install_root/version"
+    if [ "${SSH_SESSIONS_NO_PATH:-0}" != 1 ]; then
+        # Generate one sourceable PATH fragment; do not alter unrelated shell setup.
+        quoted=$(printf '%s' "$install_root/bin" | sed "s/'/'\\\\''/g")
+        printf "export PATH='%s':\"\$PATH\"\n" "$quoted" > "$install_root/env"
+        quoted_root=$(printf '%s' "$install_root" | sed "s/'/'\\\\''/g")
+        line=". '$quoted_root/env' # ssh-sessions"
+        case "${SHELL:-/bin/sh}" in
+            */zsh) profile="${ZDOTDIR:-$HOME}/.zshrc";;
+            */bash) profile="$HOME/.bashrc";;
+            */fish) profile=''; mkdir -p "$HOME/.config/fish/conf.d"; printf "fish_add_path '%s'\n" "$quoted" > "$HOME/.config/fish/conf.d/ssh-sessions.fish";;
+            *) profile="$HOME/.profile";;
+        esac
+        if [ -n "$profile" ]; then
+            if [ ! -f "$profile" ] || ! grep -Fqx "$line" "$profile"; then printf '\n%s\n' "$line" >> "$profile"; fi
+        fi
+    fi
+    printf '\n%s\n' "Installed SSH Sessions $version. Run ssh-sessions."
+    printf 'Command: %s/bin/ssh-sessions\n' "$install_root"
+    printf '%s\n' 'Open a new terminal if the command is not found. Press I to import hosts or A to add one.'
+}
 main "$@"

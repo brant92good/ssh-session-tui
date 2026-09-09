@@ -2,8 +2,8 @@
 
 This leaf owns a small machine catalog, its keyboard editor and an SSH handoff.
 It can run independently of Terminal Workspace, Port Forward TUI or a private
-setup repository. It currently uses Python/Textual: the earlier Rust experiment
-measured a return launcher, not a full TUI, and did not justify a complete rewrite.
+setup repository. The production app uses Rust and Ratatui. Installation downloads
+a compiled binary; Python files remain only as a developer migration reference.
 
 The three layers are:
 
@@ -51,6 +51,11 @@ name is derived from the local catalog path. This keeps separate catalogs from
 sharing preferences accidentally; moving a checkout means selecting routes
 again. With multiple routes, removing the selected route requires a fresh
 choice. With one remaining route, the choice is unambiguous.
+
+Windows catalog identity uses full Unicode 15 case folding, matching the previous
+Python 3.12/3.13 runtime. The mapping is embedded and frozen: a routine dependency
+upgrade must not silently change device state filenames. Numeric-string ports
+and UTF-8 BOMs accepted by the old reader remain readable by the native app.
 
 Numbered favorites are a separate `.favorites.json` file next to those device
 preferences. Version 1 stores `slots`, a map from strings `1`–`9` to stable

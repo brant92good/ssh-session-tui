@@ -25,7 +25,10 @@ def main():
     binary = options.binary.resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix='native-ssh-compat-') as temporary:
         root = Path(temporary)
-        catalog = Catalog(root / 'shared folder/catalog.json', root / 'device')
+        # Full folding is part of Windows' persisted catalog identity. Lowercase
+        # alone loses the existing device routes/favorites/lock for this path.
+        shared = root / 'shared Stra\u00dfe \u0130 \u03c2 \ufb03 \uab70'
+        catalog = Catalog(shared / 'catalog.json', root / 'device')
         machine = Machine('demo', 'Development 開發', 'dev', (
             Route('lan', 'LAN', '192.0.2.10'), Route('vpn', 'VPN', 'demo.example.test', 2222)),
             group='Work/Lab', tags=('gpu', 'windows'))
@@ -33,6 +36,9 @@ def main():
         catalog.choose(machine, 'vpn')
         Favorites(catalog).assign(1, 'demo')
         Favorites(catalog).assign(2, LOCAL)
+        # Both legacy JSON readers accept UTF-8 BOMs written by Windows tools.
+        for path in (catalog.device_path, Favorites(catalog).path):
+            path.write_bytes(b'\xef\xbb\xbf' + path.read_bytes())
         def run(*args, success=True):
             result = subprocess.run([str(binary), '--catalog', str(catalog.path), '--state-dir',
                 str(catalog.state_dir), *args, '--json'], capture_output=True, encoding='utf-8',
@@ -53,6 +59,12 @@ def main():
         assert changed.id == machine.id and changed.routes == machine.routes
         assert changed.group == 'Projects/GPU' and changed.tags == ('gpu', 'windows', 'training')
         assert catalog.preferred(changed).id == 'vpn'
+        raw = json.loads(catalog.path.read_bytes())
+        raw['machines'][0]['routes'][0]['port'] = '00022'
+        catalog.path.write_text(json.dumps(raw), encoding='utf-8')
+        assert run('list')['machines'][0]['routes'][0]['port'] == 22
+        run('organize', '--machine', 'demo', '--group', 'Stra\u00dfe/Lab', '--add-tag', '\ufb03')
+        assert len(run('list', '--group', 'STRASSE', '--tag', 'ffi')['machines']) == 1
         before = Favorites(catalog).path.read_bytes()
         with locked(catalog.lock_path):
             error = run('favorites', 'set', '4', '--local', success=False)
@@ -70,7 +82,7 @@ def main():
         imported = next(m for m in catalog.load().machines if m.id != 'demo')
         assert imported.routes[0].ssh_alias == 'alpha'
         assert run('command', imported.id)['argv'][-1] == 'alpha'
-        assert not (root / 'shared folder' / 'device').exists()
+        assert not (shared / 'device').exists()
         # A compiled executable still works with only the system SSH directory in PATH.
         environment = dict(os.environ, PATH=str(Path(os.environ.get('SystemRoot', '/usr')) / 'System32/OpenSSH') if os.name == 'nt' else '/usr/bin:/bin')
         result = subprocess.run([str(binary), '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir),

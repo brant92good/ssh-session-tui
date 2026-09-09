@@ -10,6 +10,13 @@ repository = "https://github.com/brant92good/ssh-session-tui"
 [lib]
 name = "ssh_sessions"
 
+[features]
+screenshots = []
+
+[[example]]
+name = "capture"
+required-features = ["screenshots"]
+
 [[bin]]
 name = "ssh-sessions"
 path = "src/main.rs"
@@ -31,6 +38,9 @@ dirs = "6"
 which = "8"
 ctrlc = "3"
 unicode-width = "0.2"
+
+[dev-dependencies]
+portable-pty = "0.9"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Threading"] }

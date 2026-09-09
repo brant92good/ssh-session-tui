@@ -44,7 +44,8 @@ copy of SSH Sessions to **0.4 or newer** before sharing organized catalogs.
 
 Press **I**, use **Space** to select hosts or **A** for all, then **Enter** to
 import. Enter with no marked rows imports the highlighted host. Tab reaches
-the config path; Enter reloads it. New machines join the current group.
+the config-path form; Enter reloads it. **C** opens that form too, and **G** chooses
+the import group. New machines join the current group by default.
 
 ![Import existing SSH hosts](screenshots/import.svg)
 
@@ -120,5 +121,5 @@ ssh-sessions doctor --json
 Repeat `--machine` for bulk edits. `--add-tag` and `--remove-tag` also repeat.
 `command` prints the SSH argument list for inspection. `list`, `groups`,
 `organize`, `favorites` and `import-ssh` manage catalog data; the interactive
-picker starts sessions. Global `--catalog` and `--state-dir` options come before
-the command.
+picker starts sessions. Global `--catalog` and `--state-dir` options work before
+or after the command.

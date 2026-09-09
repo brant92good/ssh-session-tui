@@ -2,112 +2,113 @@
 
 # SSH Sessions
 
-Your servers, a number key away.
+**One server list. Your route on each device.**
 
-Save the machines you connect to, give your regulars a number, and press
-**1, then Enter** to open a session. Search a longer list, browse by project,
-or choose **Local terminal** when you want a shell on this computer.
+Stop saving the same server as three different machines. Keep its LAN, VPN and
+tunnel addresses together, then choose the route each computer should use.
+Open a regular with **1, Enter**, search the rest, and get back to the list when
+you log out. Your existing SSH client handles the connection.
 
-[![Checks](https://github.com/brant92good/ssh-session-tui/actions/workflows/test.yml/badge.svg)](https://github.com/brant92good/ssh-session-tui/actions/workflows/test.yml)
+[![Native checks](https://github.com/brant92good/ssh-session-tui/actions/workflows/native.yml/badge.svg)](https://github.com/brant92good/ssh-session-tui/actions/workflows/native.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-65d6be)](LICENSE)
 
-[Install](#install) · [Keyboard guide](docs/usage.md) · [SSH import](#import-existing-ssh-hosts) · [Report a problem](https://github.com/brant92good/ssh-session-tui/issues)
+[Install](#install) · [Keys](docs/usage.md) · [SSH import](#use-the-hosts-you-already-have) · [Commands for agents](#commands-for-scripts-and-agents)
 
-![SSH Sessions: numbered favorites, groups and a local terminal](docs/screenshots/picker.svg)
+![SSH Sessions native picker with numbered favorites and machine groups](docs/screenshots/picker.svg)
 
-*The actual app with example machines, numbered favorites and groups.*
+*Rendered from the Rust app with example machines. No live connections in this image.*
 
 ## Install
 
 **Windows — paste into PowerShell:**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.ps1 | iex"
 ```
 
-**macOS / Linux — beta:**
+**Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.sh | sh
 ```
 
-Then run **`ssh-sessions`**. Open a new terminal if the command isn't found yet.
-The installer downloads Python and the app's dependencies. You don't need to
-install Python or Git first, and setup doesn't ask for a server.
-Run the same install command again to update.
+Run **`ssh-sessions`** in a new terminal. Press **I** to import SSH hosts or **A**
+to add your first machine. There is no server question during installation.
 
-Connecting uses your **OpenSSH client** (`ssh`). Git is only needed if you want
-to sync a catalog. [Installer details and uninstall](docs/install.md).
+The installer downloads a compiled Rust binary and checks its SHA-256 checksum.
+No Python, Rust compiler or Git is required. You need OpenSSH (`ssh`) to connect;
+Git is optional for sharing a catalog. [Install, update and uninstall](docs/install.md).
 
-macOS and Linux installation, updating and local-shell controls pass automated
-tests. Real remote login in their desktop terminal apps still needs testing,
-so support remains **beta**. [Platform evidence](docs/verification.md).
+| Platform | Binary | Status |
+| --- | --- | --- |
+| Windows 10/11 | x64 | Native console / Windows Terminal |
+| Linux | x64, ARM64 | Native terminal; static binary |
+| macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
-## Make your first connection
+See [verification](docs/verification.md) for exactly what has been exercised.
 
-1. Press **I** to import existing SSH hosts, or **A** to add a machine.
-2. Select it and press **Enter**. OpenSSH handles your usual login.
-3. Log out to return to the list. **Local terminal** works the same way; type `exit` to return.
+## Use the hosts you already have
 
-### Numbered favorites
+Press **I**, preview the names in your SSH config, select with **Space**, then
+**Enter**. Imported routes retain their SSH aliases, so your jump hosts, proxies
+and identity settings still apply. Import also accepts a different config file.
 
-Select a machine or Local terminal, press **F**, and choose a slot from **1–9**.
-Press its **number, then Enter** to connect from any group. The number selects
-the destination first, so you can check it before opening a session.
+Or use **A** and enter a name, username and address. Select the machine and press
+**Enter** to connect. Type `exit` in the remote shell to return to the picker.
+**Local terminal** opens your local shell and returns in the same way.
 
-## Who is this for?
+[Import details and repeat imports](docs/ssh-import.md).
 
-- You keep returning to the same few servers and want their names on screen.
-- Your machine list has grown across projects, labs or locations and needs groups and search.
-- You use a LAN address at home and a different route on your laptop.
-- You work with a coding agent and want commands it can inspect, plus a picker you can use yourself.
+## One machine, several ways in
 
-## A bigger list, still easy to find
+Add **LAN**, **Tailscale** or other named routes under one server. Press **R** to
+choose this computer's route. Share the catalog through an explicit Git pull or
+publish; each device keeps its own route choice and numbered favorites.
 
-**G** browses groups such as `Work/Production`. **/** searches names, addresses,
-groups and tags; try `tag:gpu`. Select several machines with **Space**, then
-**M** to move them or **T** to edit tags. Favorites work across groups.
+![The native route chooser showing LAN and Tailscale for one machine](docs/screenshots/routes.svg)
+
+A failed connection shows the alternatives. You choose whether to try one;
+the app never silently switches routes or replaces your saved preference.
+
+## Favorites for the daily work. Groups for the rest.
+
+Select a machine or Local terminal, press **F**, choose **1–9**, then **Enter** to save. On the main
+list, the number selects that favorite and **Enter** connects. Favorites work
+across groups, so your regular machines stay reachable while you browse.
+
+**G** opens nested groups such as `Work/Production`. **/** searches names, routes,
+groups and tags; try `group:Work tag:gpu`. **Space** marks machines, **M** moves
+them, and **T** changes their tags in one edit.
 
 <details>
-<summary>See groups and the keyboard controls</summary>
+<summary>Keyboard reference and group browser</summary>
 
-![Nested machine groups in SSH Sessions](docs/screenshots/groups.svg)
+![Native SSH Sessions group browser](docs/screenshots/groups.svg)
 
 | Key | Action |
 | --- | --- |
-| Arrows, Enter | Choose and open a session |
-| 1–9, Enter / F | Open / edit a numbered favorite |
+| Arrows, Enter | Select and open a session |
+| 1–9, Enter / F | Open / assign a favorite |
 | G / / | Browse groups / search |
 | A / E / D | Add / edit / delete a machine |
 | R / I | Choose a route / import SSH hosts |
-| Space / Ctrl+A | Select one machine / all shown |
-| M / T | Move selected machines / edit tags |
+| Space / Ctrl+A | Mark one machine / all shown |
+| M / T | Move machines / edit tags |
 | S | Pull or publish the catalog |
-| F1 / Q | Keyboard guide / close picker |
+| Ctrl+L | Open the local shell |
+| F1 / Q | Help / close the picker |
 
-Forms use **Tab** to move, **Ctrl+S** to save and **Esc** to cancel.
-[Full keyboard and organization guide](docs/usage.md).
+Forms use **Tab**, **Ctrl+S** to save, and **Esc** to cancel.
+[Full usage guide](docs/usage.md).
 
 </details>
 
-## Import existing SSH hosts
+## Who might find this useful?
 
-Press **I** to preview your SSH config, mark hosts with **Space**, then press
-**Enter** to import. Imported connections use their original SSH aliases, so
-OpenSSH can still apply your jump-host, proxy and key settings.
-You can choose another config file in the import screen.
-
-[What gets imported, and how repeat imports work](docs/ssh-import.md).
-
-## One machine, different routes
-
-A machine can have routes named **LAN**, **Tailscale**, or whatever makes sense
-to you. **R** chooses this computer's route. If a connection fails, you can pick
-an alternative to try; the app waits for your choice.
-
-You can [share a catalog through Git](docs/usage.md#share-a-catalog-through-git).
-Machine names, addresses, usernames, groups and tags travel together.
-Each computer keeps its own route choices and favorite numbers.
+- You move between a desktop and laptop that reach the same servers differently.
+- Your SSH config has become a list you search through before every connection.
+- You want project or lab groups without maintaining a separate SSH client setup.
+- You use coding agents and want the same saved machines available through JSON commands.
 
 ## Commands for scripts and agents
 
@@ -118,26 +119,19 @@ ssh-sessions groups list --json
 ssh-sessions command MACHINE_ID --json
 ```
 
-`command` prints the SSH arguments for a saved machine. Get its ID from `list`.
-[More commands](docs/usage.md#commands-for-scripts-and-agents) cover import,
-favorites and bulk organization. [AGENTS.md](AGENTS.md) maps the code and checks.
+`list` returns stable machine IDs. `command` returns an argument array for your
+SSH client without connecting. Import, favorites and bulk organization also have
+CLI commands. [Automation examples](docs/usage.md#commands-for-scripts-and-agents)
+and [AGENTS.md](AGENTS.md) document the boundaries and checks.
 
-## Windows Terminal integration
+## Make it your new-tab screen
 
-[Terminal Workspace](https://github.com/brant92good/terminal-workspace) can make
-this picker your new-tab screen and give local PowerShell its own shortcut.
-It also pairs remote tabs with [Port Forward TUI](https://github.com/brant92good/port-forward-tui)
-for reaching remote web apps. SSH Sessions can be installed on its own.
+[Terminal Workspace](https://github.com/brant92good/terminal-workspace) can start
+this picker in new Windows Terminal tabs while giving local PowerShell its own
+shortcut. It also pairs remote sessions with
+[Port Forward TUI](https://github.com/brant92good/port-forward-tui).
+SSH Sessions works independently of that integration.
 
-## Testing
-
-CI runs on Windows, Ubuntu and macOS with Python 3.12/3.13. It checks keyboard
-flows, catalog changes, installation and updates. Real SSH login, logout back
-to the picker and the local PowerShell shortcut were also checked on Windows.
-[Verification and reproduction](docs/verification.md) records the details.
-
-Found a rough edge? [Open an issue](https://github.com/brant92good/ssh-session-tui/issues)
-with your OS, terminal app and what you pressed. Setup reports from macOS and
-Linux are especially useful while those platforms are in beta.
-
-[Data format](docs/design.md) · [Backlog](docs/backlog.md) · [MIT license](LICENSE)
+This is a machine organizer and SSH handoff. It does not add SFTP, credential
+sync or a terminal multiplexer. [Data format](docs/design.md) ·
+[Build and test](docs/verification.md) · [Report an issue](https://github.com/brant92good/ssh-session-tui/issues)

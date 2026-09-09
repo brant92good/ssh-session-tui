@@ -50,6 +50,25 @@ fn empty_load_and_unicode_round_trip() {
     );
 }
 #[test]
+fn legacy_numeric_string_ports_and_full_casefold_matching() {
+    let mut value = json!({"version":1,"machines":[sample()]});
+    value["machines"][0]["routes"][0]["port"] = json!("00022");
+    assert_eq!(
+        decode(&serde_json::to_vec(&value).unwrap()).unwrap()[0].routes[0].port,
+        22
+    );
+    let mut machine = sample();
+    machine.group = "Stra\u{df}e/Lab".into();
+    machine.tags = vec!["\u{fb03}".into()];
+    assert!(organization::matches(&machine, "group:STRASSE tag:ffi"));
+    assert_eq!(
+        tags(vec!["Stra\u{df}e".into(), "STRASSE".into()])
+            .unwrap()
+            .len(),
+        1
+    );
+}
+#[test]
 fn reject_bad_fields_types_duplicates_and_options() {
     let valid = serde_json::to_value(json!({"version":1,"machines":[sample()]})).unwrap();
     for level in 0..3 {

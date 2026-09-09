@@ -1,6 +1,7 @@
+use crate::text::casefold;
 use anyhow::{Context, Result, bail, ensure};
 use fs2::FileExt;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -17,6 +18,7 @@ pub struct Route {
     pub id: String,
     pub name: String,
     pub host: String,
+    #[serde(deserialize_with = "deserialize_port")]
     pub port: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh_alias: Option<String>,
@@ -67,19 +69,18 @@ pub fn identifier(value: &str) -> Result<()> {
     Ok(())
 }
 pub fn label(value: &str) -> Result<String> {
-    let value = value.trim();
     ensure!(
-        !value.is_empty()
+        !value.trim().is_empty()
             && value.chars().count() <= 100
             && !value.chars().any(|c| c.is_ascii_control()),
         "Use a readable name of 1–100 characters."
     );
-    Ok(value.into())
+    Ok(value.trim().into())
 }
 pub fn address(value: &str) -> Result<String> {
-    let value = value.trim();
+    let value = label(value)?;
     if value.parse::<std::net::IpAddr>().is_ok() {
-        return Ok(value.into());
+        return Ok(value);
     }
     ensure!(
         value
@@ -94,7 +95,7 @@ pub fn address(value: &str) -> Result<String> {
             .all(|c| c.is_ascii_alphanumeric() || b"_.-".contains(&c)),
         "Enter an IP address, hostname or SSH alias, without a username."
     );
-    Ok(value.into())
+    Ok(value)
 }
 pub fn login(value: &str) -> Result<String> {
     let value = label(value)?;
@@ -115,7 +116,26 @@ pub fn port(value: &str) -> Result<u16> {
     ensure!(port > 0, "Port must be a number from 1 to 65535.");
     Ok(port)
 }
+fn deserialize_port<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<u16, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let value = match value {
+        serde_json::Value::String(value) => value,
+        serde_json::Value::Number(value) if value.is_u64() => value.to_string(),
+        _ => {
+            return Err(serde::de::Error::custom(
+                "Port must be an integer or numeric string from 1 to 65535.",
+            ));
+        }
+    };
+    port(&value).map_err(serde::de::Error::custom)
+}
 pub fn group_path(value: &str) -> Result<String> {
+    ensure!(
+        value.chars().count() <= 160,
+        "Groups allow at most 160 characters."
+    );
     let value = value.trim();
     if value.is_empty() {
         return Ok(String::new());
@@ -147,7 +167,7 @@ pub fn tags(values: impl IntoIterator<Item = String>) -> Result<Vec<String>> {
         );
         if !result
             .iter()
-            .any(|s: &String| s.to_lowercase() == value.to_lowercase())
+            .any(|s: &String| casefold(s) == casefold(&value))
         {
             result.push(value);
         }
@@ -346,7 +366,7 @@ impl Catalog {
         let state_dir = absolute(state_dir)?;
         let identity = path.to_string_lossy().to_string();
         #[cfg(windows)]
-        let identity = identity.to_lowercase();
+        let identity = casefold(&identity);
         let key = digest(identity.as_bytes())[..24].to_owned();
         Ok(Self {
             path,
@@ -387,8 +407,9 @@ impl Catalog {
             data.len() <= 512 * 1024,
             "Device preferences are too large."
         );
-        let document: Preferences = serde_json::from_slice(&data)
-            .context("Invalid device preferences. Keep a backup before repairing the file.")?;
+        let document: Preferences =
+            serde_json::from_slice(data.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&data))
+                .context("Invalid device preferences. Keep a backup before repairing the file.")?;
         ensure!(
             document.version == 1,
             "Unsupported device preferences version."

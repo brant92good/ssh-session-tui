@@ -25,12 +25,12 @@ def main():
             env = dict(os.environ)
             if os.name == 'nt':
                 command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-                           '-File', str(source / 'scripts/install-native.ps1'), '-InstallDir', str(destination),
+                           '-File', str(source / 'install.ps1'), '-InstallDir', str(destination),
                            '-Binary', str(binary), '-Sha256', expected]
                 if not options.with_path:
                     command.append('-NoPath')
             else:
-                command = ['sh', str(source / 'scripts/install-native.sh')]
+                command = ['sh', str(source / 'install.sh')]
                 env.update(SSH_SESSIONS_INSTALL_DIR=str(destination), SSH_SESSIONS_BINARY=str(binary),
                            SSH_SESSIONS_SHA256=expected, SSH_SESSIONS_NO_PATH='0' if options.with_path else '1')
             result = subprocess.run(command, env=env, capture_output=True, encoding='utf-8', errors='replace', timeout=45, creationflags=flags)
@@ -52,7 +52,15 @@ def main():
         run(*args, 'favorites', 'set', '2', '--local', '--json')
         before = catalog.read_bytes()
         favorites = json.loads(run(*args, 'favorites', '--json'))
+        # A 0.5 owned installation can retain its runtime for already-open tabs.
+        (install_dir/'python').mkdir()
+        (install_dir/'python'/'legacy-session.txt').write_text('Keep for old sessions')
+        if os.name == 'nt':
+            (install_dir/'bin'/'ssh-sessions.cmd').write_text('@echo off\npython -m ssh_sessions %*\n')
         install()
+        assert (install_dir/'python'/'legacy-session.txt').read_text() == 'Keep for old sessions'
+        if os.name == 'nt':
+            assert not (install_dir/'bin'/'ssh-sessions.cmd').exists()
         assert catalog.read_bytes() == before
         assert json.loads(run(*args, 'favorites', '--json')) == favorites
         install(expected='0'*64, success=False)

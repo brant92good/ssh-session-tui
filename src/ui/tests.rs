@@ -127,11 +127,78 @@ fn favorite_reassignment_and_stale_slot_menu() {
     press(&mut picker, KeyCode::Char('f'));
     Favorites::assign(&picker.catalog, "4", Some("school"), None).unwrap();
     press(&mut picker, KeyCode::Char('4'));
+    assert!(!picker.notice.contains("changed"));
+    press(&mut picker, KeyCode::Enter);
     assert!(picker.notice.contains("changed"));
     assert_eq!(
         Favorites::load(&picker.catalog).unwrap().0.slots["4"],
         "school"
     );
+}
+#[test]
+fn favorite_slot_selection_can_cancel_and_clear_a_missing_target() {
+    let (_temp, mut picker) = fixture();
+    press(&mut picker, KeyCode::Char('f'));
+    press(&mut picker, KeyCode::Char('1'));
+    press(&mut picker, KeyCode::Esc);
+    assert_eq!(
+        Favorites::load(&picker.catalog).unwrap().0.slots["1"],
+        "lab"
+    );
+    let snapshot = picker.catalog.load().unwrap();
+    picker
+        .catalog
+        .save(&snapshot.machines[1..], &snapshot.revision)
+        .unwrap();
+    picker.reload().unwrap();
+    press(&mut picker, KeyCode::Char('f'));
+    press(&mut picker, KeyCode::Char('1'));
+    press(&mut picker, KeyCode::Char('d'));
+    assert!(
+        !Favorites::load(&picker.catalog)
+            .unwrap()
+            .0
+            .slots
+            .contains_key("1")
+    );
+}
+#[test]
+fn import_enter_uses_highlighted_alias_and_a_marks_all() {
+    let (temp, mut picker) = fixture();
+    let config = temp.path().join("import-config");
+    std::fs::write(
+        &config,
+        "Host alpha beta\n HostName 192.0.2.44\n User dev\n",
+    )
+    .unwrap();
+    picker.screen = Screen::Import {
+        scan: ssh_import::scan(Some(&config)).unwrap(),
+        selected: 1,
+        marked: BTreeSet::new(),
+        group: "Imported".into(),
+        revision: picker.snapshot.revision.clone(),
+    };
+    press(&mut picker, KeyCode::Enter);
+    assert!(matches!(picker.screen, Screen::Main), "{}", picker.notice);
+    assert!(picker.catalog.load().unwrap().machines.iter().any(|m| {
+        m.routes
+            .iter()
+            .any(|r| r.ssh_alias.as_deref() == Some("beta"))
+    }));
+    assert!(!picker.catalog.load().unwrap().machines.iter().any(|m| {
+        m.routes
+            .iter()
+            .any(|r| r.ssh_alias.as_deref() == Some("alpha"))
+    }));
+    picker.screen = Screen::Import {
+        scan: ssh_import::scan(Some(&config)).unwrap(),
+        selected: 0,
+        marked: BTreeSet::new(),
+        group: String::new(),
+        revision: picker.snapshot.revision.clone(),
+    };
+    press(&mut picker, KeyCode::Char('a'));
+    assert!(matches!(&picker.screen, Screen::Import { marked,.. } if marked.len()==2));
 }
 #[test]
 fn form_unicode_edit_save_and_stale_save_protection() {

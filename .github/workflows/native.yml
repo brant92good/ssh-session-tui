@@ -39,7 +39,7 @@ jobs:
       - run: cargo +1.94.0 test --locked --target ${{ matrix.target }}
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
-      - run: cargo +1.94.0 clippy --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+      - run: cargo +1.94.0 clippy --locked --all-targets --all-features --target ${{ matrix.target }} -- -D warnings
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
       - run: cargo +1.94.0 build --release --locked --target ${{ matrix.target }}
@@ -69,3 +69,29 @@ jobs:
             target/${{ matrix.target }}/release/ssh-sessions
             target/${{ matrix.target }}/release/ssh-sessions.exe
           if-no-files-found: error
+      - name: Package immutable release files
+        shell: bash
+        run: python scripts/package_native.py --target '${{ matrix.target }}'
+      - name: Keep release files and checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+  prerelease:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: native
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Publish reviewed tag as a prerelease, never overwrite existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --prerelease --title "SSH Sessions $GITHUB_REF_NAME" --notes-file docs/releases/native.md

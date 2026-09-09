@@ -24,6 +24,7 @@ impl Picker {
                     self.notice.clear();
                 }
                 KeyCode::Char('s') if ctrl => self.save_form(&form)?,
+                KeyCode::Enter if matches!(form.edit, Edit::ImportPath) => self.save_form(&form)?,
                 KeyCode::Tab | KeyCode::Down | KeyCode::Enter => {
                     form.selected = (form.selected + 1) % form.fields.len();
                     self.screen = Screen::Form(form);
@@ -38,33 +39,49 @@ impl Picker {
                     self.screen = Screen::Form(form);
                 }
             },
-            Screen::Favorite { target, revision } => match key.code {
+            Screen::Favorite {
+                target,
+                revision,
+                mut selected,
+            } => match key.code {
                 KeyCode::Esc => self.screen = Screen::Main,
                 KeyCode::Char('1'..='9') => {
                     if let KeyCode::Char(c) = key.code {
-                        Favorites::assign(
-                            &self.catalog,
-                            &c.to_string(),
-                            Some(&target),
-                            Some(&revision),
-                        )?;
-                        self.reload()?;
-                        self.screen = Screen::Main;
-                        self.notice = format!("Favorite {c} saved. Use {c}, then Enter.");
+                        selected = c as usize - '1' as usize;
+                        self.screen = Screen::Favorite {
+                            target,
+                            revision,
+                            selected,
+                        };
                     }
                 }
-                KeyCode::Char('0') | KeyCode::Delete => {
-                    if let Some(slot) = self.favorites.slots.iter().find_map(|(slot, t)| {
-                        if t == &target {
-                            Some(slot.clone())
-                        } else {
-                            None
-                        }
-                    }) {
-                        Favorites::assign(&self.catalog, &slot, None, Some(&revision))?;
-                        self.reload()?;
-                    }
+                KeyCode::Up | KeyCode::Down => {
+                    selected = if key.code == KeyCode::Up {
+                        selected.saturating_sub(1)
+                    } else {
+                        (selected + 1).min(8)
+                    };
+                    self.screen = Screen::Favorite {
+                        target,
+                        revision,
+                        selected,
+                    };
+                }
+                KeyCode::Enter | KeyCode::Char('d' | 'D') | KeyCode::Delete => {
+                    let slot = (selected + 1).to_string();
+                    let save = key.code == KeyCode::Enter;
+                    Favorites::assign(
+                        &self.catalog,
+                        &slot,
+                        if save { Some(&target) } else { None },
+                        Some(&revision),
+                    )?;
+                    self.reload()?;
                     self.screen = Screen::Main;
+                    self.notice = format!(
+                        "Favorite {slot} {}.",
+                        if save { "saved" } else { "cleared" }
+                    );
                 }
                 _ => {}
             },
@@ -199,7 +216,7 @@ impl Picker {
                             }
                         }
                     }
-                    KeyCode::Char('a') if ctrl => {
+                    KeyCode::Char('a' | 'A') => {
                         let ready: BTreeSet<_> = scan
                             .entries
                             .iter()
@@ -217,7 +234,7 @@ impl Picker {
                             marked = ready;
                         }
                     }
-                    KeyCode::Char('c' | 'C') => {
+                    KeyCode::Char('c' | 'C') | KeyCode::Tab => {
                         self.form(
                             "Choose SSH config",
                             Edit::ImportPath,
@@ -237,6 +254,11 @@ impl Picker {
                         return Ok(());
                     }
                     KeyCode::Enter => {
+                        if marked.is_empty()
+                            && let Some(entry) = scan.entries.get(selected)
+                        {
+                            marked.insert(entry.alias.clone());
+                        }
                         let result = ssh_import::import(
                             &self.catalog,
                             &scan,
@@ -364,6 +386,7 @@ impl Picker {
                 self.screen = Screen::Favorite {
                     target: self.current(),
                     revision: Favorites::load(&self.catalog)?.1,
+                    selected: 0,
                 }
             }
             KeyCode::Char(' ') => {

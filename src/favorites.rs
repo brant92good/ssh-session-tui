@@ -29,8 +29,9 @@ impl Favorites {
         }
         let raw = fs::read(path)?;
         ensure!(raw.len() <= 8192, "Favorites file is too large.");
-        let value: Self = serde_json::from_slice(&raw)
-            .context("Invalid favorites file. Keep a backup before repairing it.")?;
+        let value: Self =
+            serde_json::from_slice(raw.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&raw))
+                .context("Invalid favorites file. Keep a backup before repairing it.")?;
         value.validate()?;
         Ok((value, digest(&raw)))
     }

@@ -27,6 +27,8 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Display application and embedded Unicode data licenses.
+    Licenses,
     /// List machines and this device's selected routes.
     List {
         #[arg(long)]
@@ -150,6 +152,14 @@ fn group_result(catalog: &Catalog, structured: bool) -> Result<()> {
     Ok(())
 }
 fn run(args: Args) -> Result<()> {
+    if matches!(args.command, Some(Action::Licenses)) {
+        println!(
+            "{}\n{}",
+            include_str!("../LICENSE"),
+            include_str!("../docs/licenses/UNICODE.txt")
+        );
+        return Ok(());
+    }
     let directory = connection::default_directory();
     let catalog = Catalog::new(
         &args
@@ -159,6 +169,7 @@ fn run(args: Args) -> Result<()> {
     )?;
     let snapshot = catalog.load()?;
     match args.command {
+        Some(Action::Licenses) => unreachable!("Handled before reading user data"),
         None => ui::picker_loop(&catalog)?,
         Some(Action::Init) => {
             if !catalog.path.exists() {

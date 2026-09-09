@@ -1,87 +1,89 @@
 # Install SSH Sessions
 
-**macOS / Linux: beta.** Automated installation, PATH setup, update and local-shell
-checks pass. Real remote login in desktop terminal apps still needs qualification.
-See [verification](verification.md).
+The [README commands](../README.md#install) download a compiled Rust executable
+for your OS and CPU, verify its SHA-256 checksum, and add its `bin` directory to
+your user PATH. No Python, Cargo or Git is installed. Setup does not ask for a
+host, open a window, start SSH, or modify SSH configuration.
 
-The README's one-command installers download uv 0.10.10 from Astral, then
-Python 3.12 and the tagged SSH Sessions 0.5.0 package from this repository.
-They do not use an existing project virtual environment or require Git.
-The app command runs its installed package with isolated Python settings,
-including when a project contains its own `ssh_sessions.py`.
+Inspect [install.ps1](../install.ps1) or [install.sh](../install.sh) before running
+them if you prefer. Installation needs HTTPS access to GitHub releases. The
+Windows command changes execution policy only for that installer process.
 
-Before running a downloaded script, you can inspect [install.ps1](../install.ps1)
-or [install.sh](../install.sh). Internet access is needed during installation.
-The normal install updates your user PATH through `uv tool update-shell`.
-Open a new terminal if the current shell cannot find the command yet.
-The Windows command sets execution policy for its installer process only;
-it does not change your saved user or machine execution policy.
+## Supported binaries
+
+| System | CPU | Notes |
+| --- | --- | --- |
+| Windows 10/11 | x64 | Static C runtime; no separate VC runtime installer |
+| Linux | x64, ARM64 | musl static build; no recent glibc prerequisite |
+| macOS | ARM64, Intel | **Beta**; see [platform evidence](verification.md) |
+
+Windows ARM64 currently uses the x64 binary through Windows emulation. A native
+Windows ARM64 build is not supplied or independently qualified.
+
+OpenSSH (`ssh`) is needed to connect. `ssh-sessions doctor --json` checks for it.
+On Windows it is the OpenSSH Client optional feature; on Linux use your
+distribution's SSH client package. macOS normally includes the client.
+Git is only needed for explicit catalog sync.
 
 ## Locations
 
-| System | App files | Catalog and device preferences |
+| System | App files | Catalog and device state |
 | --- | --- | --- |
 | Windows | `%LOCALAPPDATA%\Programs\SSHSessions` | `%LOCALAPPDATA%\SSHSessions` |
-| Linux | `$XDG_DATA_HOME/ssh-sessions-install`, or `~/.local/share/ssh-sessions-install` | `$XDG_DATA_HOME/SSHSessions`, or `~/.local/share/SSHSessions` |
-| macOS | `~/.local/share/ssh-sessions-install` (honors XDG_DATA_HOME if set) | `~/Library/Application Support/SSHSessions` |
+| Linux | `$XDG_DATA_HOME/ssh-sessions-install`, otherwise `~/.local/share/ssh-sessions-install` | `$XDG_DATA_HOME/SSHSessions`, otherwise `~/.local/share/SSHSessions` |
+| macOS | `~/.local/share/ssh-sessions-install` (honors XDG_DATA_HOME) | `~/Library/Application Support/SSHSessions` |
 
-Use `--catalog PATH --state-dir PATH` before a CLI subcommand to override app
-data locations. Keep device preferences outside a synced repository.
-The install directory holds its own runtime and tool environment; do not move
-it after installation. Reinstall into a new location instead.
+The executable is `bin/ssh-sessions.exe` on Windows and `bin/ssh-sessions` on Unix.
+`--catalog PATH` overrides the shared file; `--state-dir PATH` overrides device
+preferences, favorites and import bindings. These options work before or after
+a subcommand. Keep device state outside the shared repository.
 
-## Scripted installation
-
-Download the script to a file to pass PowerShell options:
+## Choose an install location
 
 ```powershell
-irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/main/install.ps1 -OutFile install-ssh-sessions.ps1
+irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.ps1 -OutFile install-ssh-sessions.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install-ssh-sessions.ps1 -InstallDir C:\Tools\SSHSessions -NoPath
-C:\Tools\SSHSessions\bin\ssh-sessions.cmd --version
+C:\Tools\SSHSessions\bin\ssh-sessions.exe --version
 ```
 
-`-NoPath` skips PATH changes. For Unix shells, the equivalents are
-`SSH_SESSIONS_INSTALL_DIR=/absolute/path` and `SSH_SESSIONS_NO_PATH=1`, set in
-the environment of `sh install.sh`. These installers do not open the picker,
-start connections or prompt for a host.
+Unix equivalents are `SSH_SESSIONS_INSTALL_DIR=/absolute/path` and
+`SSH_SESSIONS_NO_PATH=1` in the environment of `sh install.sh`. Those environment
+variables also work with PowerShell. By default Unix setup adds one managed line
+to `.bashrc`, `.zshrc`, `.profile`, or a Fish `conf.d` file; it preserves the rest.
 
-`-Package PATH_OR_URL` / `SSH_SESSIONS_PACKAGE` overrides the release package,
-for example to test a local checkout. Install directories must be empty or
-marked as belonging to this installer. Other tools' directories are refused.
-
-## Existing Python or uv
-
-For developers who already manage Python, clone this repository and use
-`python -m pip install .` in a Python 3.12+ virtual environment. The standard
-package command is also `ssh-sessions`. With uv installed:
-
-```sh
-uv tool install --python 3.12 https://github.com/brant92good/ssh-session-tui/archive/refs/tags/v0.5.0.tar.gz
-```
-
-That standard uv command uses your uv tool directories; the one-command
-installers above use a separate app directory and an isolated launcher.
-
-## Missing SSH and local shells
-
-Run `ssh-sessions doctor --json` to check setup. On Windows, install OpenSSH
-Client in Settings → Optional features if `ssh` is missing. Linux needs its
-distribution's OpenSSH client package; macOS includes an SSH client.
-
-Local terminal uses PowerShell 7 on Windows when available, then Windows
-PowerShell or cmd. Linux/macOS use the shell named by `SHELL`, or `/bin/sh`
-when it is unset. An invalid configured shell produces an error to correct.
-Your normal shell startup files still run.
+`-Version` / `SSH_SESSIONS_VERSION` selects a release. Developer checks can use
+`-Binary` / `SSH_SESSIONS_BINARY` with `-Sha256` / `SSH_SESSIONS_SHA256`. Local
+test binaries require an explicit hash. Install directories must be empty or
+carry this installer's ownership marker. Unrelated directories are refused.
 
 ## Update and uninstall
 
-Rerun the README install command to install its current tagged release. It
-recreates the tool environment while leaving the separate catalog and device
-files in place. Close active SSH Sessions pickers before updating on Windows,
-where an executable in use may prevent replacement. Existing SSH sessions
-are not an installer test target.
+Rerun the current README's install command. A checksum or version mismatch leaves
+the existing binary intact. Updates keep the previous executable for rollback
+and do not alter your separate catalog, favorites or device preferences.
 
-To uninstall, close the app, remove the installer-owned app directory shown
-above, and remove its `bin` entry from your user PATH/shell startup file.
-Catalog data remains available for a later reinstall. Delete that separate
-data directory only if you also want to remove your saved machines/preferences.
+An upgrade from 0.5 replaces its command shim with the native executable. Its old
+Python runtime is left in the owned install directory so existing sessions can
+finish. The new command does not invoke it. Close pickers before updating on
+Windows if that OS refuses to replace an executable in use.
+
+To uninstall, close the app, remove its owned app directory, and remove that
+directory's PATH entry or managed shell-startup line. Saved machine data remains
+in the separate location above. Remove it only if you want to erase that data.
+
+## Local shell
+
+Local terminal prefers PowerShell 7 on Windows, then Windows PowerShell, then
+cmd. Linux/macOS use `$SHELL`, or `/bin/sh` when unset. Your normal shell startup
+files run. Type `exit` to return to the picker. An invalid shell path produces an
+error; setup does not edit your shell configuration to repair it.
+
+## Build from source
+
+```sh
+cargo build --release --locked
+```
+
+Rust 1.88 or newer is required for source builds; release CI pins its toolchain.
+Python files remain temporarily as a migration reference for developer tests,
+not the shipped runtime. [Checks and limitations](verification.md).

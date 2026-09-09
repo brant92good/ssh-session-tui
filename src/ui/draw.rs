@@ -352,7 +352,9 @@ impl Picker {
                     ),
                 );
             }
-            Screen::Favorite { target, .. } => {
+            Screen::Favorite {
+                target, selected, ..
+            } => {
                 let rect = modal(
                     frame,
                     area,
@@ -360,9 +362,9 @@ impl Picker {
                     70,
                     18,
                 );
-                let mut lines: Vec<_> = (1..=9)
+                let items: Vec<_> = (1..=9)
                     .map(|n| {
-                        Line::from(format!(
+                        ListItem::new(format!(
                             "{n}  {}",
                             self.favorites
                                 .slots
@@ -372,13 +374,16 @@ impl Picker {
                         ))
                     })
                     .collect();
-                lines.extend([
-                    Line::from(""),
-                    Line::from("Press 1–9 to save here. 0 clears this item's number."),
-                    Line::from("Esc back"),
-                    Line::from(self.notice.clone()),
-                ]);
-                frame.render_widget(Paragraph::new(lines), rect);
+                menu(
+                    frame,
+                    rect,
+                    items,
+                    *selected,
+                    &format!(
+                        "{}\n1–9 / arrows select  Enter save  D clear slot  Esc back",
+                        self.notice
+                    ),
+                );
             }
             Screen::Confirm { message, .. } => {
                 let rect = modal(frame, area, "Confirm deletion", 72, 10);

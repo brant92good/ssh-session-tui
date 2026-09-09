@@ -1,6 +1,10 @@
 //! Picker state is separate from rendering and terminal/process ownership.
 mod draw;
 mod events;
+#[cfg(feature = "screenshots")]
+mod screenshots;
+#[cfg(feature = "screenshots")]
+pub use screenshots::capture;
 #[cfg(test)]
 mod tests;
 use crate::{
@@ -137,6 +141,7 @@ enum Screen {
     Favorite {
         target: String,
         revision: String,
+        selected: usize,
     },
     Confirm {
         message: String,

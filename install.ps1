@@ -1,12 +1,12 @@
 param(
-    [string]$InstallDir = '',
-    [string]$Package = 'https://github.com/brant92good/ssh-session-tui/archive/refs/tags/v0.5.0.zip',
-    [switch]$NoPath
+    [string]$InstallDir = $env:SSH_SESSIONS_INSTALL_DIR,
+    [string]$Version = $(if ($env:SSH_SESSIONS_VERSION) { $env:SSH_SESSIONS_VERSION } else { '0.6.0' }),
+    [string]$Binary = $env:SSH_SESSIONS_BINARY,
+    [string]$Sha256 = $env:SSH_SESSIONS_SHA256,
+    [switch]$NoPath = ($env:SSH_SESSIONS_NO_PATH -eq '1')
 )
 $ErrorActionPreference = 'Stop'
-# A Windows PowerShell child launched through Python can inherit PowerShell 7's
-# module search order. Load this host's own module before uv checks policy.
-Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1')
+if ($Version -notmatch '^\d+\.\d+\.\d+([-.][A-Za-z0-9.-]+)?$') { throw 'Invalid release version.' }
 if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\SSHSessions' }
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
 $marker = Join-Path $InstallDir '.ssh-sessions-installer'
@@ -14,46 +14,75 @@ if ((Test-Path -LiteralPath $InstallDir) -and -not (Test-Path -LiteralPath $mark
     @(Get-ChildItem -LiteralPath $InstallDir -Force).Count) {
     throw "Choose an empty install directory: $InstallDir already contains other files."
 }
-New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-[IO.File]::WriteAllText($marker, 'ssh-session-tui')
-$uvSettings = @{
-    UV_UNMANAGED_INSTALL = (Join-Path $InstallDir 'uv')
-    UV_TOOL_DIR = (Join-Path $InstallDir 'tools')
-    UV_TOOL_BIN_DIR = (Join-Path $InstallDir 'tool-bin')
-    UV_PYTHON_INSTALL_DIR = (Join-Path $InstallDir 'python')
-    UV_PYTHON_INSTALL_BIN = '0'; UV_PYTHON_INSTALL_REGISTRY = '0'; UV_NO_CONFIG = '1'
-    UV_CONCURRENT_DOWNLOADS = '2'; UV_CONCURRENT_BUILDS = '1'; UV_CONCURRENT_INSTALLS = '2'
+if ((Test-Path -LiteralPath $marker) -and [IO.File]::ReadAllText($marker).Trim() -ne 'ssh-session-tui') {
+    throw 'This install directory belongs to another application.'
 }
-$previous = @{}
+if (-not [Environment]::Is64BitOperatingSystem) { throw 'This release requires 64-bit Windows.' }
+$asset = 'ssh-sessions-x86_64-pc-windows-msvc.exe'
+$base = "https://github.com/brant92good/ssh-session-tui/releases/download/v$Version"
+if (-not $Binary) { $Binary = "$base/$asset" }
+New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+$stage = Join-Path $InstallDir ('.install-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $stage | Out-Null
+$candidate = Join-Path $stage 'ssh-sessions.exe'
+$bin = Join-Path $InstallDir 'bin'
+$command = Join-Path $bin 'ssh-sessions.exe'
+$backup = Join-Path $bin ('ssh-sessions.previous-' + [Guid]::NewGuid().ToString('N') + '.exe')
 try {
-    foreach ($key in $uvSettings.Keys) {
-        $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
-        [Environment]::SetEnvironmentVariable($key, $uvSettings[$key], 'Process')
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    if ($Binary -match '^https://') {
+        Invoke-WebRequest -UseBasicParsing -Uri $Binary -OutFile $candidate
+        if (-not $Sha256) { $Sha256 = ((Invoke-WebRequest -UseBasicParsing -Uri ($Binary + '.sha256')).Content.Trim() -split '\s+')[0] }
+    } elseif (Test-Path -LiteralPath $Binary -PathType Leaf) {
+        Copy-Item -LiteralPath $Binary -Destination $candidate
+        if (-not $Sha256) { throw 'Local test binaries require -Sha256.' }
+    } else { throw 'Binary must be an HTTPS release URL or an existing local file.' }
+    if ($Sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'The release checksum is invalid.' }
+    # Use the built-in .NET implementation. An inherited PowerShell 7 module path
+    # can prevent Windows PowerShell 5 from loading Get-FileHash's script module.
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($candidate)
+    try { $actualHash = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+    if ($actualHash -ine $Sha256) { throw 'Download checksum mismatch. The existing installation was preserved.' }
+    $reported = & $candidate --version
+    if ($LASTEXITCODE -ne 0 -or $reported -ne "ssh-sessions $Version") { throw 'The downloaded app could not run or has the wrong version.' }
+    New-Item -ItemType Directory -Path $bin -Force | Out-Null
+    if (Test-Path -LiteralPath $command) {
+        try { Move-Item -LiteralPath $command -Destination $backup }
+        catch { throw 'Close SSH Sessions and run the install command again. The current app was preserved.' }
     }
-    $uvApp = Join-Path $InstallDir 'uv\uv.exe'
-    if (-not (Test-Path -LiteralPath $uvApp)) {
-        Write-Output 'Preparing the installer...'
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $download = Invoke-RestMethod 'https://astral.sh/uv/0.10.10/install.ps1'
-        & ([scriptblock]::Create($download))
-        if (-not (Test-Path -LiteralPath $uvApp)) { throw 'Could not prepare uv. Check the download error above.' }
+    try { Move-Item -LiteralPath $candidate -Destination $command }
+    catch {
+        if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $command }
+        throw
     }
-    Write-Output 'Installing SSH Sessions and its Python runtime...'
-    & $uvApp --no-config --quiet tool install --managed-python --python 3.12 --reinstall --force $Package
-    if ($LASTEXITCODE -ne 0) { throw 'Installation failed. Check the error above and run this command again.' }
-    $appPython = Join-Path $InstallDir 'tools\ssh-session-tui\Scripts\python.exe'
-    & $appPython -E -s -m ssh_sessions.install_support $InstallDir
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create the app command.' }
-    $env:UV_TOOL_BIN_DIR = Join-Path $InstallDir 'bin'
+    [IO.File]::WriteAllText($marker, 'ssh-session-tui')
+    [IO.File]::WriteAllText((Join-Path $InstallDir 'version'), $Version)
+    # Remove only our known older Python command shim. Its runtime can be removed
+    # separately after existing sessions close; no environment cleanup is attempted.
+    $oldShim = Join-Path $bin 'ssh-sessions.cmd'
+    if ((Test-Path -LiteralPath $oldShim) -and [IO.File]::ReadAllText($oldShim).Contains('-m ssh_sessions')) {
+        Move-Item -LiteralPath $oldShim -Destination (Join-Path $InstallDir ('legacy-shim-' + [Guid]::NewGuid().ToString('N') + '.cmd'))
+    }
     if (-not $NoPath) {
-        & $uvApp --no-config tool update-shell
-        if ($LASTEXITCODE -ne 0) { throw 'The app installed, but PATH could not be updated. Use the bin command in the install directory.' }
-        if ($env:PATH.Split(';') -notcontains $env:UV_TOOL_BIN_DIR) { $env:PATH += ';' + $env:UV_TOOL_BIN_DIR }
+        $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        $entries = @($userPath -split ';' | Where-Object { $_ })
+        if (-not ($entries | Where-Object { $_.TrimEnd('\') -ieq $bin.TrimEnd('\') })) {
+            [Environment]::SetEnvironmentVariable('Path', (($entries + $bin) -join ';'), 'User')
+        }
+        if (-not ($env:Path -split ';' | Where-Object { $_.TrimEnd('\') -ieq $bin.TrimEnd('\') })) { $env:Path += ';' + $bin }
     }
-    & $appPython -E -s -m ssh_sessions --version
-    if ($LASTEXITCODE -ne 0) { throw 'The installed app did not start.' }
-    Write-Output 'Ready. Run ssh-sessions. Press A to add a machine, or I to import SSH hosts.'
-    Write-Output ('Command: ' + (Join-Path $InstallDir 'bin\ssh-sessions.cmd'))
+    Write-Output "Installed SSH Sessions $Version. Run ssh-sessions."
+    Write-Output "Command: $command"
+    if (-not $NoPath) { Write-Output 'Open a new terminal if the command is not found yet.' }
+    Write-Output 'Press I to import SSH hosts, or A to add a machine.'
 } finally {
-    foreach ($key in $previous.Keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }
+    # Only the random staging directory created by this invocation may be removed.
+    $resolvedStage = [IO.Path]::GetFullPath($stage)
+    if ([IO.Path]::GetDirectoryName($resolvedStage) -eq $InstallDir -and
+        [IO.Path]::GetFileName($resolvedStage) -match '^\.install-[a-f0-9]{32}$' -and
+        (Test-Path -LiteralPath $resolvedStage)) {
+        Remove-Item -LiteralPath $resolvedStage -Recurse -Force
+    }
 }
