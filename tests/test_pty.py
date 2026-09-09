@@ -26,7 +26,7 @@ class UnixTerminalTests(unittest.TestCase):
             Favorites(catalog).seed({'2': LOCAL})
             pid, terminal = pty.fork()
             if pid == 0:
-                os.environ.update(TERM='xterm-256color', SHELL='/bin/sh')
+                os.environ.update(TERM='xterm-256color', SHELL='/bin/sh', PS1='ssh-test-ready> ')
                 os.environ.pop('ENV', None)
                 os.execv(sys.executable, [sys.executable, '-E', '-s', str(root/'app.py'),
                     '--catalog', str(catalog.path), '--state-dir', str(catalog.state_dir)])
@@ -47,7 +47,7 @@ class UnixTerminalTests(unittest.TestCase):
                 fcntl.ioctl(terminal, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 90, 0, 0))
                 expect('Local terminal')
                 os.write(terminal, b'2\r')
-                expect('# ')
+                expect('ssh-test-ready> ')
                 marker()
                 os.write(terminal, b'sleep 30\n')
                 time.sleep(.2)

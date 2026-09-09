@@ -20,7 +20,7 @@ def main():
     # Keep the directory for diagnosis if a check fails; report the path.
     root = Path(tempfile.mkdtemp(prefix='ssh-install-')) / 'space 測試'
     root.mkdir()
-    print(f'Isolated install check: {root}', flush=True)
+    print(f'Isolated install check: {ascii(str(root))}', flush=True)
     installed = root / 'app'
     env = dict(os.environ)
     if os.name == 'nt':

@@ -17,10 +17,10 @@ def launcher(root, python):
         path = directory / 'ssh-sessions.cmd'
         # Relative paths keep non-ASCII user names out of cmd's file encoding.
         relative = os.path.relpath(python, directory).replace('%', '%%')
-        text = '@echo off\n"%~dp0' + relative + '" -I -m ssh_sessions %*\n'
+        text = '@echo off\n"%~dp0' + relative + '" -I -X utf8 -m ssh_sessions %*\n'
     else:
         path = directory / 'ssh-sessions'
-        text = '#!/bin/sh\nexec ' + shlex.quote(str(python)) + ' -I -m ssh_sessions "$@"\n'
+        text = '#!/bin/sh\nexec ' + shlex.quote(str(python)) + ' -I -X utf8 -m ssh_sessions "$@"\n'
     path.write_text(text, encoding='utf-8', newline='\r\n' if os.name == 'nt' else '\n')
     if os.name != 'nt':
         path.chmod(0o755)
@@ -28,4 +28,5 @@ def launcher(root, python):
 
 
 if __name__ == '__main__':
-    print(launcher(sys.argv[1], sys.executable))
+    launcher(sys.argv[1], sys.executable)
+    print('Created the ssh-sessions command.')
