@@ -1,6 +1,6 @@
 # Verification
 
-The current candidate is **SSH Sessions 0.7.0**, implemented in Rust.
+The published native release is **SSH Sessions 0.7.0**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
@@ -20,7 +20,19 @@ The independent replay passed; no desktop windows or personal servers were used.
 files unchanged. Companion discovery also never launches a program. These
 checks qualify the handoff; actual SFTP behavior is qualified separately by the
 [SSH Files 0.1.0 beta release](https://github.com/brant92good/ssh-files/releases/tag/v0.1.0).
-Version 0.7.0's immutable assets and actual HTTPS checks are pending.
+The immutable [0.7.0 release](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.7.0)
+at `418ee7d1d9750e3774bca12776cc91291d87aadb` passed
+[all eleven release jobs](https://github.com/brant92good/ssh-session-tui/actions/runs/34459548086),
+including actual HTTPS installation on all five targets. A separate local Windows
+run passed the tagged installer, update, rejected checksum, saved-favorite and
+polluted-environment checks. The downloaded executable SHA-256 is
+`742a48e6cad2060931a295c0e99f13d4afdc45c62a3af55c4e1fdbeeb37d5d17`.
+
+The published Windows picker was also placed beside the published SSH Files
+0.1.0 binary with an empty PATH. Its read-only `files --json` command found that
+companion and preserved the imported alias, explicit hostname/user/port, custom
+config, quoted local path and IDs. Catalog and device files remained unchanged.
+This check did not start SSH or open a desktop window.
 
 ### Session screen regression (September 10, 2026)
 

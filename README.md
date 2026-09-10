@@ -2,8 +2,6 @@
 
 # SSH Sessions
 
-> 0.7.0 release candidate: the Files handoff below awaits released-download checks.
-
 **One server list. Your route on each device.**
 
 Stop saving the same server as three different machines. Keep its LAN, VPN and

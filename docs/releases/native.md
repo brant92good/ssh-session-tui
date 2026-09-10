@@ -25,8 +25,8 @@ Unicode Windows paths and numeric-string ports retain compatibility with 0.5.
 Each binary has a SHA-256 sidecar. The one-command installers check it before
 replacing an existing command. The old runtime can remain for already-open tabs.
 
-This is a **prerelease** while released-download and parent integration checks
-finish. macOS remains **beta**: hosted pseudo-terminal tests are distinct from
+macOS and the optional SSH Files companion remain **beta**. Hosted
+pseudo-terminal tests are distinct from
 qualification on physical desktops and every SSH/proxy setup.
 
 See the tagged README for installation and docs/verification.md for evidence.
