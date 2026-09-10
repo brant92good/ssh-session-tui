@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import tomllib
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
     parser.add_argument('--with-path', action='store_true', help='Only use on a disposable CI runner')
     options = parser.parse_args()
     source = Path(__file__).resolve().parents[1]
+    version = tomllib.loads((source / 'Cargo.toml').read_text(encoding='utf-8'))['package']['version']
     binary = options.binary.resolve(strict=True)
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
     flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -50,7 +52,7 @@ def main():
             assert result.returncode == 0, (result.stdout, result.stderr)
             return result.stdout
         install()
-        assert run('--version').strip() == 'ssh-sessions 0.6.0'
+        assert run('--version').strip() == f'ssh-sessions {version}'
         assert not (install_dir/'python').exists() and not (install_dir/'uv').exists()
         catalog, state = root/'machines.json', root/'device'
         args = ['--catalog', str(catalog), '--state-dir', str(state)]
@@ -70,7 +72,7 @@ def main():
         assert catalog.read_bytes() == before
         assert json.loads(run(*args, 'favorites', '--json')) == favorites
         install(expected='0'*64, success=False)
-        assert run('--version').strip() == 'ssh-sessions 0.6.0'
+        assert run('--version').strip() == f'ssh-sessions {version}'
         assert json.loads(run(*args, 'favorites', '--json')) == favorites
         collision = root/'not-owned'
         collision.mkdir()

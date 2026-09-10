@@ -315,7 +315,13 @@ fn main() {
         session.raw.windows(4).filter(|s| *s == b"\x1b[3J").count() >= 6,
         "Missing scrollback purge requests"
     );
-    assert_eq!(std::fs::read(&history).unwrap(), b"history must survive\n");
+    // Some /bin/sh implementations append interactive commands themselves.
+    // Preserve their normal history behavior; the old bytes must not be erased.
+    assert!(
+        std::fs::read(&history)
+            .unwrap()
+            .starts_with(b"history must survive\n")
+    );
 }
 
 #[test]
