@@ -41,7 +41,7 @@ a subcommand. Keep device state outside the shared repository.
 ## Choose an install location
 
 ```powershell
-irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.ps1 -OutFile install-ssh-sessions.ps1
+irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.1/install.ps1 -OutFile install-ssh-sessions.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install-ssh-sessions.ps1 -InstallDir C:\Tools\SSHSessions -NoPath
 C:\Tools\SSHSessions\bin\ssh-sessions.exe --version
 ```

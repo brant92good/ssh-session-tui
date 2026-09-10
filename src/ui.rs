@@ -588,6 +588,9 @@ pub fn picker_loop(catalog: &Catalog) -> Result<()> {
             };
         }
         let choice = pick(&mut picker)?; // Guard restores normal terminal mode before spawn.
+        if !matches!(choice, Choice::Quit) {
+            connection::clear_session_screen()?;
+        }
         let (args, title, remote) = match choice {
             Choice::Quit => return Ok(()),
             Choice::Local => (
@@ -634,5 +637,8 @@ pub fn picker_loop(catalog: &Catalog) -> Result<()> {
             }
             Err(error) => notice = format!("{error:#}"),
         }
+        // Keep SSH failures readable until the acknowledgement above. Returning
+        // to the alternate picker must not leave a stale shell behind it.
+        connection::clear_session_screen()?;
     }
 }

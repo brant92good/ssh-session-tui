@@ -39,6 +39,15 @@ jobs:
       - run: cargo +1.94.0 test --locked --target ${{ matrix.target }}
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
+      - name: Legacy Windows shell-return compatibility (developer fixture only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip install -e .
+          $env:SSH_SESSIONS_TEST_PYTHON = python -c 'import sys; print(sys.executable)'
+          cargo +1.94.0 test --locked --target ${{ matrix.target }} --test native_screen python_local_remote_return_clears_visible_history -- --ignored
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
       - run: cargo +1.94.0 clippy --locked --all-targets --all-features --target ${{ matrix.target }} -- -D warnings
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}

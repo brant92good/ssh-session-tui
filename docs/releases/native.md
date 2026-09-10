@@ -1,4 +1,14 @@
-The SSH machine picker now ships as a compiled Rust executable for Windows x64,
+SSH Sessions 0.6.1 clears the terminal display and scrollback between shell
+sessions, so a previous PowerShell prompt or SSH logout does not reappear behind
+the next connection. An SSH failure stays visible until you press Enter.
+Command-history files are not changed.
+
+The retained Python compatibility runtime also fixes a Ctrl+C race that could
+return to the picker before its local shell had exited. Owned pseudo-terminal
+tests cover local shell, interrupt, SSH logout, failed SSH acknowledgement and
+picker return. No desktop window or remote server is used by that regression.
+
+The SSH machine picker ships as a compiled Rust executable for Windows x64,
 Linux x64/ARM64, and macOS Apple Silicon/Intel. No Python, Rust compiler or Git
 is needed for normal installation. Git remains optional for catalog sync.
 

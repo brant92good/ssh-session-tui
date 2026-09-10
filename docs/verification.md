@@ -1,10 +1,34 @@
 # Verification
 
-The production candidate is **SSH Sessions 0.6.0**, implemented in Rust.
+The production candidate is **SSH Sessions 0.6.1**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
+
+### Session screen regression (September 10, 2026)
+
+Before the fix, both runtimes reproduced a Local shell's output and PowerShell
+prompt appearing underneath the next SSH session. The picker itself was still
+running: its alternate screen had merely hidden the unchanged primary buffer.
+Both handoff paths now clear the primary display and request saved-line removal
+before opening a shell and after it returns. Shell history files are untouched.
+
+The owned ConPTY regression launches real PowerShell with fixture-only profile
+and history isolation, executes output and Ctrl+C, opens a compiled fake SSH
+client, logs out, then checks a separate exit-255 error remains until Enter.
+It verifies that the picker stays alive, returns only after shell exit, and does
+not expose previous shell output when it closes. The visible and alternate
+buffers are checked with a VT parser. Because that parser does not implement
+ED3, scrollback removal is checked as an explicit ED3 request in the real
+terminal output stream; it is not a claim about every terminal emulator.
+
+This test also reproduced an older Python Ctrl+C race: its parent returned to
+the picker while PowerShell was still active. A temporary caught SIGINT handler
+now keeps the Python parent waiting, then restores the previous handler when
+the shell exits. Native handling was already correct. Both Windows sequences
+passed locally, with 33 ordinary native tests and Clippy passing. Hosted
+cross-platform qualification for this patch is pending.
 
 On September 10, 2026, the 32 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,

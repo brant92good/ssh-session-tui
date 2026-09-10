@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from ssh_sessions.catalog import Catalog
 from ssh_sessions.cli import main, picker_loop
-from ssh_sessions.connection import ssh_command
+from ssh_sessions.connection import clear_session_screen, ssh_command
 from ssh_sessions.ui import Choice
 from test_catalog import sample
 
@@ -23,6 +23,11 @@ class ConnectionTests(unittest.TestCase):
         self.assertNotIn('-i', args)
         self.assertNotIn('-F', args)
         self.assertNotIn('StrictHostKeyChecking=no', args)
+
+    def test_screen_clear_does_not_write_escape_codes_to_redirected_output(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            clear_session_screen()
+        self.assertEqual(output.getvalue(), '')
 
     def test_failure_offers_ui_choice_and_does_not_auto_try_another_route(self):
         with tempfile.TemporaryDirectory() as folder:

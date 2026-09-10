@@ -2,6 +2,7 @@ use crate::catalog::{Machine, Route};
 use anyhow::{Context, Result};
 use std::{
     ffi::{OsStr, OsString},
+    io::{self, IsTerminal},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -101,6 +102,23 @@ pub fn run_session(args: &[OsString]) -> Result<i32> {
     // so it cannot terminate the picker while the child shell is running.
     let status = Command::new(program).args(args).status()?;
     Ok(status.code().unwrap_or(130))
+}
+
+/// The picker uses the alternate screen; shells use the primary screen. Clear
+/// that primary screen only after the picker has released its terminal guard.
+/// This changes terminal pixels/scrollback, never a shell's command history.
+pub fn clear_session_screen() -> Result<()> {
+    if io::stdout().is_terminal() {
+        crossterm::execute!(
+            io::stdout(),
+            crossterm::style::SetAttribute(crossterm::style::Attribute::Reset),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::Purge),
+            crossterm::cursor::MoveTo(0, 0),
+            crossterm::cursor::Show
+        )?;
+    }
+    Ok(())
 }
 pub fn display_command(args: &[OsString]) -> String {
     args.iter()

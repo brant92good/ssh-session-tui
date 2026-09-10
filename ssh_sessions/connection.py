@@ -1,6 +1,7 @@
 """Only construct argv and run the existing client; no SSH config or key writes."""
 import os
 import shutil
+import signal
 import subprocess
 import sys
 
@@ -52,4 +53,40 @@ def local_shell_name():
 def run_session(command):
     # The picker has exited its alternate screen. The child owns the real TTY,
     # including host-key questions and local key-agent authentication.
-    return subprocess.call(command)
+    # Ctrl+C belongs to the foreground shell. A custom parent handler survives
+    # here but resets in an exec'd Unix child; SIG_IGN would also disable the
+    # child's interrupt handling. Restore our caller's handler after the wait.
+    previous = signal.signal(signal.SIGINT, lambda _signal, _frame: None)
+    try:
+        return subprocess.call(command)
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+
+def clear_session_screen():
+    """Clear the interactive primary display/scrollback, never history files."""
+    if not sys.stdout.isatty():
+        return
+    # Textual has restored the primary screen by this point. Windows consoles
+    # need VT processing for ED3 (saved lines); restore their original mode.
+    restore = None
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.GetStdHandle.argtypes = [wintypes.DWORD]
+        kernel.GetStdHandle.restype = wintypes.HANDLE
+        kernel.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        handle, mode = kernel.GetStdHandle(-11), wintypes.DWORD()
+        if not kernel.GetConsoleMode(handle, ctypes.byref(mode)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not kernel.SetConsoleMode(handle, mode.value | 0x0004):
+            raise ctypes.WinError(ctypes.get_last_error())
+        restore = lambda: kernel.SetConsoleMode(handle, mode.value)
+    try:
+        sys.stdout.write('\033[0m\033[2J\033[3J\033[H\033[?25h')
+        sys.stdout.flush()
+    finally:
+        if restore is not None:
+            restore()

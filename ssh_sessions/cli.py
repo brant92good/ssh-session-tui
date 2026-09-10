@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 from .catalog import Catalog, CatalogError
-from .connection import local_command, local_shell_name, run_session, set_title, ssh_command
+from .connection import clear_session_screen, local_command, local_shell_name, run_session, set_title, ssh_command
 from .ssh_import import connection_config
 
 
@@ -37,6 +37,7 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
             return 0
         failed = None
         try:
+            clear_session_screen()
             command = local_command() if choice.kind == 'local' else ssh_command(choice.machine, choice.route,
                 config=connection_config(catalog, choice.machine, choice.route))
             set_title('Local ' + local_shell_name() if choice.kind == 'local' else f'{choice.machine.name} | {choice.route.name}')
@@ -53,6 +54,10 @@ def picker_loop(catalog, picker_factory=None, runner=run_session):
             notice = 'Session interrupted. Choose a machine to connect again.'
         except (OSError, ValueError) as error:
             notice = str(error)
+        finally:
+            # Leave the failure message visible until the Enter prompt above;
+            # then erase the shell before Textual enters its alternate screen.
+            clear_session_screen()
 
 
 def main(argv=None):
