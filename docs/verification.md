@@ -1,6 +1,6 @@
 # Verification
 
-The production candidate is **SSH Sessions 0.6.2**, implemented in Rust.
+The published native release is **SSH Sessions 0.6.2**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
@@ -34,6 +34,18 @@ including Windows compatibility and Linux loopback SSH checks. The initial
 assetless `v0.6.1` tag is retained: it caught a stale installer-test version and
 a macOS test that incorrectly rejected the shell appending its own history.
 The corrections change test expectations, not session cleanup behavior.
+
+The immutable [`v0.6.2` tag](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.2)
+passed [all eleven release jobs](https://github.com/brant92good/ssh-session-tui/actions/runs/34448027497):
+five native build/test jobs, publication, and five actual HTTPS installer jobs.
+The [legacy compatibility matrix](https://github.com/brant92good/ssh-session-tui/actions/runs/34448027464)
+also passed. A separate Windows run used the advertised HTTPS installer in a
+temporary directory and passed fresh install, update, checksum rejection,
+preserved favorite and inherited-environment checks, with PATH changes disabled.
+Its downloaded executable SHA-256 was
+`be5cce104b4bd65906e5aa32af94752db62798aedd5b9a1c6e1d1ddac394004b`.
+The runtime is commit `8a9492542e3216d3575893c512ec8007cba40d06`; these
+documentation updates do not replace the qualified release assets.
 
 On September 10, 2026, the 32 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,
