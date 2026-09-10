@@ -15,7 +15,7 @@ import tempfile
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--version', default='0.6.2')
+    parser.add_argument('--version', default='0.7.0')
     parser.add_argument('--ref', help='Pinned source tag or commit, default vVERSION')
     options = parser.parse_args()
     version = options.version

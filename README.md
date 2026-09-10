@@ -2,7 +2,7 @@
 
 # SSH Sessions
 
-> Development branch: the optional Files companion below is not in the current stable release.
+> 0.7.0 release candidate: the Files handoff below awaits released-download checks.
 
 **One server list. Your route on each device.**
 
@@ -25,13 +25,13 @@ you log out. Your existing SSH client handles the connection.
 **Windows — paste into PowerShell:**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.2/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.7.0/install.ps1 | iex"
 ```
 
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.2/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.7.0/install.sh | sh
 ```
 
 Run **`ssh-sessions`** in a new terminal. Press **I** to import SSH hosts or **A**
@@ -47,11 +47,7 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | Linux | x64, ARM64 | Native terminal; static binary |
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
-<<<<<<< HEAD
-[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.0)
-=======
-[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.2)
->>>>>>> 8a94925 (Prepare 0.6.2 patch after cross-platform fixture qualification)
+[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.7.0)
 are available for each platform above. See [verification](docs/verification.md)
 for the published-download tests and what remains unqualified.
 
@@ -94,10 +90,12 @@ Press **X** to open [SSH Files](https://github.com/brant92good/ssh-files) with t
 same machine and route. Browse both sides, review the transfer queue, and return
 to the picker when finished. **F** still manages numbered favorites.
 
-Install the companion separately, or use a Terminal Workspace bundle that
-includes it. First-time SSH login and host-key setup use the normal **Enter**
-connection. Files uses noninteractive SSH and asks you to return if setup is
-needed. It never silently changes your route after a failure.
+[Install the compiled companion](https://github.com/brant92good/ssh-files#install)
+once, then open a new terminal so it is on PATH. SSH Files is currently **beta**.
+Use the normal **Enter** connection for first-time host-key verification and
+key-agent setup. Files needs authentication that works without a prompt; a
+password-only login is not enough. It never silently changes your route after
+a failure.
 
 <details>
 <summary>Keyboard reference and group browser</summary>

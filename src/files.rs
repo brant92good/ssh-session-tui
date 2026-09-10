@@ -43,7 +43,7 @@ fn resolve_with(
         }
     }
     lookup(name).context(
-        "SSH Files is not installed. See https://github.com/brant92good/ssh-files#try-the-source-build, then press X again.",
+        "SSH Files is not installed. See https://github.com/brant92good/ssh-files#install, then press X again.",
     )
 }
 

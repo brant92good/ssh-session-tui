@@ -1,10 +1,26 @@
 # Verification
 
-The published native release is **SSH Sessions 0.6.2**, implemented in Rust.
+The current candidate is **SSH Sessions 0.7.0**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
+
+### Optional Files handoff (September 10, 2026)
+
+The Files feature at `a42f567` passed [all five native platform jobs](https://github.com/brant92good/ssh-session-tui/actions/runs/34448841729).
+The 38 native tests include a real owned pseudo-terminal with a compiled,
+no-network companion. It checks X versus F and modal input, explicit route
+selection, literal Unicode arguments, a custom local SSH config, primary-screen
+handoff, and return to the picker. A companion exit of 255 stays visible until
+acknowledged and cannot overwrite a route preference changed by another view.
+The independent replay passed; no desktop windows or personal servers were used.
+
+`files --json` is checked to leave the executable unstarted and catalog/device
+files unchanged. Companion discovery also never launches a program. These
+checks qualify the handoff; actual SFTP behavior is qualified separately by the
+[SSH Files 0.1.0 beta release](https://github.com/brant92good/ssh-files/releases/tag/v0.1.0).
+Version 0.7.0's immutable assets and actual HTTPS checks are pending.
 
 ### Session screen regression (September 10, 2026)
 

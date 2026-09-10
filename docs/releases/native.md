@@ -1,4 +1,10 @@
-SSH Sessions 0.6.2 clears the terminal display and scrollback between shell
+SSH Sessions 0.7.0 opens the optional compiled SSH Files companion with **X**.
+It uses the selected machine and explicit route, including an existing SSH alias
+and custom config. **F** remains Favorites. The `files --json` command returns
+the selected launch arguments without executing them. Install SSH Files separately;
+it is a beta and needs SSH key authentication that works without a prompt.
+
+This release retains the 0.6.2 fix that clears display and scrollback between shell
 sessions, so a previous PowerShell prompt or SSH logout does not reappear behind
 the next connection. An SSH failure stays visible until you press Enter.
 Command-history files are not changed.
