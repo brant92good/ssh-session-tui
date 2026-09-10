@@ -72,6 +72,30 @@ If SSH fails, choose an alternative route to retry once, or Esc to return.
 Trying an alternative leaves the saved route preference unchanged. Cloudflare,
 VPN and jump-host routes use the configuration already installed on that computer.
 
+## Open the file browser
+
+Select a remote machine and press **X**. With several routes and no device
+selection, choose one first. The companion opens in the current tab and starts
+its local pane in the current working directory. Closing it returns to the
+picker; it does not start an SSH shell or try an alternative route automatically.
+
+[SSH Files](https://github.com/brant92good/ssh-files) is an optional compiled
+companion. SSH Sessions looks for it beside its own executable, then on PATH.
+Set `SSH_FILES_BIN` to an absolute executable path to use a specific installation;
+an invalid override reports an error instead of choosing another copy.
+
+The handoff preserves the machine's imported SSH alias, explicit hostname,
+username, port and local config path. That selected route stays fixed for the
+file-browser session even if another picker changes device preferences.
+Files uses noninteractive SSH: complete first-time login, host-key acceptance
+and key-agent setup through **Enter** before opening Files.
+
+For scripts, `ssh-sessions files MACHINE_ID --route ROUTE_ID --json` returns
+`argv`, `machine_id` and `route_id` without launching or probing an executable,
+connecting, or saving settings. It errors if the companion is missing, the
+route is ambiguous, or the imported alias is unavailable. Without `--json`,
+the command opens the companion and waits for it to close.
+
 | Key | Action |
 | --- | --- |
 | Arrows, Enter | Choose a machine or local terminal and open it |
@@ -82,6 +106,7 @@ VPN and jump-host routes use the configuration already installed on that compute
 | / / Esc | Search / clear filters and selection |
 | A / E / D | Add / edit / delete a machine |
 | R / I | Routes / SSH import |
+| X | Open SSH Files for the selected machine and route |
 | S | Pull / Publish |
 | F5 / F1 | Reload / keyboard guide |
 | Ctrl+L / Q | Local shell / close picker |

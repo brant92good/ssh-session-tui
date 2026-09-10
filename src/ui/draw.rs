@@ -162,7 +162,7 @@ impl Picker {
             .style(Style::default().fg(ACCENT)),
             parts[4],
         );
-        frame.render_widget(Paragraph::new("Enter connect  1–9 favorite  A add  I import  R routes  G groups  / search\nF favorite  Space select  M move  T tags  S sync  F1 help  Q quit").style(Style::default().fg(MUTED)),parts[5]);
+        frame.render_widget(Paragraph::new("Enter connect  1–9 favorite  A add  I import  R routes  G groups  / search\nF favorite  X files  Space select  M move  T tags  S sync  F1 help  Q quit").style(Style::default().fg(MUTED)),parts[5]);
         self.draw_modal(frame, area);
     }
     fn draw_modal(&self, frame: &mut Frame<'_>, area: Rect) {
@@ -437,8 +437,8 @@ impl Picker {
                 );
             }
             Screen::Help => {
-                let rect = modal(frame, area, "Keyboard guide", 86, 25);
-                frame.render_widget(Paragraph::new("↑ ↓ / Enter     Choose and open a session\n1–9 / Enter      Select a numbered favorite, then connect\nF                Assign or clear a favorite number\nG                Browse groups; E renames a selected group\n/                Search words, tag:gpu or group:Work\nSpace / Ctrl+A   Select one / all shown machines\nM / T            Move selected machines / edit tags\nA / E / D        Add / edit / delete a machine\nR                Choose, add or edit connection routes\nI                Preview local SSH hosts and import selected entries\nS                Pull or publish the catalog through Git\nF5               Reload changes from another tab\nCtrl+L           Open a local shell; exit returns to this picker\nQ                Close the picker\n\nForms: Tab moves fields, Ctrl+S saves, Esc cancels.\nFavorites apply across groups. Digits in forms remain text.\n\nEsc / F1 / Enter  Back").wrap(Wrap { trim:false }),rect);
+                let rect = modal(frame, area, "Keyboard guide", 86, 26);
+                frame.render_widget(Paragraph::new("↑ ↓ / Enter     Choose and open a session\n1–9 / Enter      Select a numbered favorite, then connect\nF                Assign or clear a favorite number\nX                Open SSH Files for the selected machine/route\nG                Browse groups; E renames a selected group\n/                Search words, tag:gpu or group:Work\nSpace / Ctrl+A   Select one / all shown machines\nM / T            Move selected machines / edit tags\nA / E / D        Add / edit / delete a machine\nR                Choose, add or edit connection routes\nI                Preview local SSH hosts and import selected entries\nS                Pull or publish the catalog through Git\nF5               Reload changes from another tab\nCtrl+L           Open a local shell; exit returns to this picker\nQ                Close the picker\n\nForms: Tab moves fields, Ctrl+S saves, Esc cancels.\nFavorites apply across groups. Digits in forms remain text.\n\nEsc / F1 / Enter  Back").wrap(Wrap { trim:false }),rect);
             }
         }
     }

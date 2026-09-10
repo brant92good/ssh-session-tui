@@ -11,7 +11,7 @@ use crate::{
     catalog::{self, Catalog, Machine, Route, Snapshot},
     connection,
     favorites::{Favorites, LOCAL},
-    organization,
+    files, organization,
     ssh_import::{self, Scan},
 };
 use anyhow::{Context, Result, ensure};
@@ -117,6 +117,11 @@ enum Delete {
     Machines(Vec<String>),
     Route(String, String),
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionAction {
+    Connect,
+    Files,
+}
 #[derive(Debug, Clone)]
 enum Screen {
     Main,
@@ -126,7 +131,7 @@ enum Screen {
         machine: String,
         selected: usize,
         fallback: bool,
-        connect_after: bool,
+        after: Option<SessionAction>,
     },
     Groups {
         selected: usize,
@@ -159,6 +164,7 @@ enum Screen {
 pub enum Choice {
     Local,
     Connect(Box<Machine>, Route),
+    Files(files::Launch),
     Quit,
 }
 
@@ -351,24 +357,51 @@ impl Picker {
         Ok(())
     }
     fn connect(&mut self, id: &str) -> Result<()> {
+        self.open(id, SessionAction::Connect)
+    }
+    fn session_choice(
+        &mut self,
+        machine: Machine,
+        route: Route,
+        action: SessionAction,
+    ) -> Result<()> {
+        self.choice = Some(match action {
+            SessionAction::Connect => Choice::Connect(Box::new(machine), route),
+            SessionAction::Files => Choice::Files(files::prepare(
+                &self.catalog,
+                &self.snapshot.revision,
+                &machine,
+                &route,
+                &files::executable()?,
+                &std::env::current_dir()?,
+            )?),
+        });
+        Ok(())
+    }
+    fn open(&mut self, id: &str, action: SessionAction) -> Result<()> {
         ensure!(
             self.selection_valid,
             "Choose an available favorite or use the arrow keys before connecting."
         );
         self.ensure_current()?;
         if id == LOCAL {
+            ensure!(
+                action == SessionAction::Connect,
+                "Choose a remote machine to open SSH Files."
+            );
             self.choice = Some(Choice::Local);
             return Ok(());
         }
         let machine = self.machine(id)?.clone();
         if let Some(route) = self.catalog.preferred(&machine, &self.preferences) {
-            self.choice = Some(Choice::Connect(Box::new(machine.clone()), route.clone()));
+            let route = route.clone();
+            self.session_choice(machine, route, action)?;
         } else {
             self.screen = Screen::Routes {
                 machine: machine.id,
                 selected: 0,
                 fallback: false,
-                connect_after: true,
+                after: Some(action),
             };
         }
         Ok(())
@@ -584,19 +617,20 @@ pub fn picker_loop(catalog: &Catalog) -> Result<()> {
                 machine,
                 selected: 0,
                 fallback: true,
-                connect_after: true,
+                after: Some(SessionAction::Connect),
             };
         }
         let choice = pick(&mut picker)?; // Guard restores normal terminal mode before spawn.
         if !matches!(choice, Choice::Quit) {
             connection::clear_session_screen()?;
         }
-        let (args, title, remote) = match choice {
+        let (args, title, remote, session_name) = match choice {
             Choice::Quit => return Ok(()),
             Choice::Local => (
                 connection::local_command(),
                 format!("Local {}", connection::local_shell_name()),
                 None,
+                "Local shell",
             ),
             Choice::Connect(machine, route) => {
                 let args =
@@ -611,8 +645,10 @@ pub fn picker_loop(catalog: &Catalog) -> Result<()> {
                     args,
                     format!("{} | {}", machine.name, route.name),
                     Some(machine.id),
+                    "SSH session",
                 )
             }
+            Choice::Files(launch) => (Ok(launch.argv), launch.title, None, "SSH Files"),
         };
         connection::set_title(&title);
         match args.and_then(|args| connection::run_session(&args)) {
@@ -625,14 +661,19 @@ pub fn picker_loop(catalog: &Catalog) -> Result<()> {
                 io::stdin().read_line(&mut line)?;
                 notice = "Connection failed. Select another route to try once.".into();
             }
+            Ok(code) if session_name == "SSH Files" && code != 0 => {
+                println!(
+                    "SSH Files ended (exit {code}). Read its message above, then press Enter to return."
+                );
+                let mut line = String::new();
+                io::stdin().read_line(&mut line)?;
+                notice =
+                    "Use Enter for SSH login/key setup or R to choose a route, then try X again."
+                        .into();
+            }
             Ok(code) => {
                 notice = format!(
-                    "{} ended (exit {code}). Choose a machine to connect again.",
-                    if remote.is_some() {
-                        "SSH session"
-                    } else {
-                        "Local shell"
-                    }
+                    "{session_name} ended (exit {code}). Choose a machine to connect again."
                 )
             }
             Err(error) => notice = format!("{error:#}"),

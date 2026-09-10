@@ -71,7 +71,7 @@ fn favorite_selects_across_groups_then_enter_requires_a_route() {
     assert!(matches!(
         picker.screen,
         Screen::Routes {
-            connect_after: true,
+            after: Some(SessionAction::Connect),
             ..
         }
     ));
@@ -92,7 +92,7 @@ fn fallback_is_explicit_and_does_not_change_preference() {
         machine: "lab".into(),
         selected: 0,
         fallback: true,
-        connect_after: true,
+        after: Some(SessionAction::Connect),
     };
     assert!(picker.choice.is_none());
     press(&mut picker, KeyCode::Down);
@@ -121,6 +121,40 @@ fn local_favorite_and_modal_numeric_isolation() {
     type_text(&mut picker, "123");
     assert_eq!(picker.query.text, "123");
     assert!(picker.choice.is_none());
+}
+
+#[test]
+fn files_asks_for_a_route_and_keeps_modal_keys_and_favorites_separate() {
+    let (_temp, mut picker) = fixture();
+    let favorites = picker.favorites.slots.clone();
+    press(&mut picker, KeyCode::Char('1'));
+    press(&mut picker, KeyCode::Char('x'));
+    assert!(matches!(
+        picker.screen,
+        Screen::Routes {
+            after: Some(SessionAction::Files),
+            fallback: false,
+            ..
+        }
+    ));
+    assert!(picker.choice.is_none());
+    press(&mut picker, KeyCode::Esc);
+    press(&mut picker, KeyCode::Char('2'));
+    press(&mut picker, KeyCode::Char('x'));
+    assert!(picker.choice.is_none());
+    assert!(picker.notice.contains("remote machine"));
+    press(&mut picker, KeyCode::Char('/'));
+    type_text(&mut picker, "example x");
+    assert_eq!(picker.query.text, "example x");
+    assert!(picker.choice.is_none());
+    press(&mut picker, KeyCode::Esc);
+    press(&mut picker, KeyCode::Char('a'));
+    type_text(&mut picker, "X server");
+    assert!(
+        matches!(&picker.screen, Screen::Form(form) if form.fields[0].input.text == "X server")
+    );
+    assert!(picker.choice.is_none());
+    assert_eq!(picker.favorites.slots, favorites);
 }
 #[test]
 fn invalid_number_then_enter_cannot_open_the_prior_or_adjacent_row() {

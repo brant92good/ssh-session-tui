@@ -2,6 +2,8 @@
 
 # SSH Sessions
 
+> Development branch: the optional Files companion below is not in the current stable release.
+
 **One server list. Your route on each device.**
 
 Stop saving the same server as three different machines. Keep its LAN, VPN and
@@ -23,13 +25,13 @@ you log out. Your existing SSH client handles the connection.
 **Windows — paste into PowerShell:**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.1/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.ps1 | iex"
 ```
 
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.1/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.sh | sh
 ```
 
 Run **`ssh-sessions`** in a new terminal. Press **I** to import SSH hosts or **A**
@@ -45,7 +47,7 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | Linux | x64, ARM64 | Native terminal; static binary |
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
-[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.1)
+[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.0)
 are available for each platform above. See [verification](docs/verification.md)
 for the published-download tests and what remains unqualified.
 
@@ -82,6 +84,17 @@ across groups, so your regular machines stay reachable while you browse.
 groups and tags; try `group:Work tag:gpu`. **Space** marks machines, **M** moves
 them, and **T** changes their tags in one edit.
 
+## Files for the machine you selected
+
+Press **X** to open [SSH Files](https://github.com/brant92good/ssh-files) with the
+same machine and route. Browse both sides, review the transfer queue, and return
+to the picker when finished. **F** still manages numbered favorites.
+
+Install the companion separately, or use a Terminal Workspace bundle that
+includes it. First-time SSH login and host-key setup use the normal **Enter**
+connection. Files uses noninteractive SSH and asks you to return if setup is
+needed. It never silently changes your route after a failure.
+
 <details>
 <summary>Keyboard reference and group browser</summary>
 
@@ -94,6 +107,7 @@ them, and **T** changes their tags in one edit.
 | G / / | Browse groups / search |
 | A / E / D | Add / edit / delete a machine |
 | R / I | Choose a route / import SSH hosts |
+| X | Open the optional SSH Files companion |
 | Space / Ctrl+A | Mark one machine / all shown |
 | M / T | Move machines / edit tags |
 | S | Pull or publish the catalog |
@@ -119,10 +133,14 @@ ssh-sessions doctor --json
 ssh-sessions list --json
 ssh-sessions groups list --json
 ssh-sessions command MACHINE_ID --json
+ssh-sessions files MACHINE_ID --route ROUTE_ID --json
 ```
 
 `list` returns stable machine IDs. `command` returns an argument array for your
-SSH client without connecting. Import, favorites and bulk organization also have
+SSH client without connecting. `files --json` validates the selected route and
+prints the companion's argument array without launching it; a missing companion
+returns an explicit error. Omit `--json` to open Files in your terminal.
+Import, favorites and bulk organization also have
 CLI commands. [Automation examples](docs/usage.md#commands-for-scripts-and-agents)
 and [AGENTS.md](AGENTS.md) document the boundaries and checks.
 
@@ -134,6 +152,6 @@ shortcut. It also pairs remote sessions with
 [Port Forward TUI](https://github.com/brant92good/port-forward-tui).
 SSH Sessions works independently of that integration.
 
-This is a machine organizer and SSH handoff. It does not add SFTP, credential
-sync or a terminal multiplexer. [Data format](docs/design.md) ·
+SSH Sessions owns the machine list and session handoff; its optional Files
+companion owns SFTP. [Data format](docs/design.md) ·
 [Build and test](docs/verification.md) · [Report an issue](https://github.com/brant92good/ssh-session-tui/issues)

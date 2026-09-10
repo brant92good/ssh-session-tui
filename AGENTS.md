@@ -10,6 +10,12 @@ a search or changing groups clears bulk selection. Favorites are global within
 the catalog, even when a group filter is active.
 Numbered favorites live in a separate device-local file managed by src/favorites.rs.
 They reference stable machine IDs or @local; never infer identity from row order.
+The optional Files handoff is in src/files.rs. X opens the compiled ssh-files
+companion; F stays Favorites. Freeze machine/route/config/cwd before terminal
+handoff, preserve alias plus explicit HostName, and reject stale catalog/binding
+preparation. Discovery and files --json never launch a program or connect. An
+invalid explicit SSH_FILES_BIN errors; Files failures never trigger SSH fallback
+or change the device preference. Keep companion authentication policy in its leaf.
 The Local terminal row is always available. Numbers select, Enter opens; preserve
 normal numeric input and modal isolation. Public defaults contain no personal hosts.
 Terminal Workspace owns Windows Terminal profiles and hotkeys. A user's private

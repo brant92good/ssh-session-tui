@@ -89,7 +89,7 @@ impl Picker {
                 machine,
                 mut selected,
                 fallback,
-                connect_after,
+                after,
             } => {
                 let current = self.machine(&machine)?.clone();
                 selected = selected.min(current.routes.len().saturating_sub(1));
@@ -105,7 +105,7 @@ impl Picker {
                             machine,
                             selected,
                             fallback,
-                            connect_after,
+                            after,
                         };
                     }
                     KeyCode::Enter => {
@@ -119,8 +119,8 @@ impl Picker {
                             self.catalog.choose(&current, &route.id)?;
                             self.reload()?;
                         }
-                        if fallback || connect_after {
-                            self.choice = Some(Choice::Connect(Box::new(current), route));
+                        if let Some(action) = after {
+                            self.session_choice(current, route, action)?;
                         } else {
                             self.screen = Screen::Main;
                             self.notice = format!("Using {} on this device.", route.name);
@@ -388,6 +388,13 @@ impl Picker {
                 self.selected = (self.selected + 10).min(self.rows().len().saturating_sub(1))
             }
             KeyCode::Enter => self.connect(&self.current())?,
+            KeyCode::Char('x' | 'X')
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+            {
+                self.open(&self.current(), SessionAction::Files)?
+            }
             KeyCode::Char('l') if ctrl => self.choice = Some(Choice::Local),
             KeyCode::Char('c') if ctrl => self.choice = Some(Choice::Quit),
             KeyCode::Char('a') if ctrl => {
@@ -513,7 +520,7 @@ impl Picker {
                     machine,
                     selected: 0,
                     fallback: false,
-                    connect_after: false,
+                    after: None,
                 };
             }
             KeyCode::Char('i' | 'I') => match ssh_import::scan(None) {

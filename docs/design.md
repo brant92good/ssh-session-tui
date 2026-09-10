@@ -1,6 +1,6 @@
 # Data and connection boundaries
 
-This leaf owns a small machine catalog, its keyboard editor and an SSH handoff.
+This leaf owns a small machine catalog, its keyboard editor and session handoffs.
 It can run independently of Terminal Workspace, Port Forward TUI or a private
 setup repository. The production app uses Rust and Ratatui. Installation downloads
 a compiled binary; Python files remain only as a developer migration reference.
@@ -92,7 +92,17 @@ does not update the device preference. There is no route probing or automatic
 fallback in the background. A hostname/alias route does not provision a VPN,
 Cloudflare helper, proxy or key.
 
+The optional Files handoff freezes the selected machine, route, custom config
+path and working directory before releasing the terminal. It resolves a compiled
+companion through an explicit absolute `SSH_FILES_BIN`, the executable's own
+directory, or PATH, without executing candidates during discovery. The same
+stable machine/route IDs and imported alias/HostName combination reach the
+companion through an argument array. Catalog revision and local binding changes
+during preparation are rejected. No shared schema or authentication policy is
+added. A Files error returns to the picker without automatic fallback or a
+preferred-route change. See [the user path](usage.md#open-the-file-browser).
+
 The existing Herdr/Ports paired workspace keeps its own catalog and context
 rules. Joining those catalogs and designing agent-heavy SSH behavior require
 the [deferred discussion](backlog.md). This release does not claim public-key
-inventory, authorization status, SFTP, terminal multiplexing or credential sync.
+inventory, authorization status, terminal multiplexing or credential sync.

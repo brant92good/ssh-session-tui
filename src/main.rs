@@ -2,14 +2,17 @@ use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
 use serde_json::{Value, json};
 use ssh_sessions::{
-    catalog::Catalog,
+    catalog::{Catalog, Machine, Route, Snapshot},
     connection,
     favorites::{Favorites, LOCAL},
-    organization, ssh_import,
+    files, organization, ssh_import,
     sync::GitSync,
     ui,
 };
-use std::path::PathBuf;
+use std::{
+    io::{self, IsTerminal},
+    path::PathBuf,
+};
 
 #[derive(Parser)]
 #[command(
@@ -58,6 +61,14 @@ enum Action {
     },
     /// Print an SSH argument list without opening a session.
     Command {
+        machine: String,
+        #[arg(long)]
+        route: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Open SSH Files for a machine; --json prints arguments without launching it.
+    Files {
         machine: String,
         #[arg(long)]
         route: Option<String>,
@@ -150,6 +161,37 @@ fn group_result(catalog: &Catalog, structured: bool) -> Result<()> {
         },
     );
     Ok(())
+}
+fn selection<'a>(
+    catalog: &Catalog,
+    snapshot: &'a Snapshot,
+    machine: &str,
+    route: Option<&str>,
+) -> Result<(&'a Machine, &'a Route)> {
+    let matches: Vec<_> = snapshot
+        .machines
+        .iter()
+        .filter(|m| m.id == machine || m.name == machine)
+        .collect();
+    ensure!(
+        matches.len() == 1,
+        "Select a unique machine ID or exact name."
+    );
+    let machine = matches[0];
+    let preferences = catalog.preferences()?;
+    let selected = if let Some(route) = route {
+        let routes: Vec<_> = machine
+            .routes
+            .iter()
+            .filter(|r| r.id == route || r.name == route)
+            .collect();
+        ensure!(routes.len() == 1, "Select a unique route ID or name.");
+        Some(routes[0])
+    } else {
+        catalog.preferred(machine, &preferences)
+    }
+    .context("Choose a route explicitly with --route or in the TUI.")?;
+    Ok((machine, selected))
 }
 fn run(args: Args) -> Result<()> {
     if matches!(args.command, Some(Action::Licenses)) {
@@ -248,29 +290,7 @@ fn run(args: Args) -> Result<()> {
             route,
             json: structured,
         }) => {
-            let matches: Vec<_> = snapshot
-                .machines
-                .iter()
-                .filter(|m| m.id == machine || m.name == machine)
-                .collect();
-            ensure!(
-                matches.len() == 1,
-                "Select a unique machine ID or exact name."
-            );
-            let machine = matches[0];
-            let preferences = catalog.preferences()?;
-            let selected = if let Some(route) = route {
-                let routes: Vec<_> = machine
-                    .routes
-                    .iter()
-                    .filter(|r| r.id == route || r.name == route)
-                    .collect();
-                ensure!(routes.len() == 1, "Select a unique route ID or name.");
-                Some(routes[0])
-            } else {
-                catalog.preferred(machine, &preferences)
-            }
-            .context("Choose a route explicitly with --route or in the TUI.")?;
+            let (machine, selected) = selection(&catalog, &snapshot, &machine, route.as_deref())?;
             let config = ssh_import::connection_config(&catalog, machine, selected)?;
             let args = connection::ssh_command(machine, selected, config.as_deref())?;
             emit(
@@ -278,6 +298,49 @@ fn run(args: Args) -> Result<()> {
                 structured,
                 connection::display_command(&args),
             );
+        }
+        Some(Action::Files {
+            machine,
+            route,
+            json: structured,
+        }) => {
+            let (machine, route) = selection(&catalog, &snapshot, &machine, route.as_deref())?;
+            let launch = files::prepare(
+                &catalog,
+                &snapshot.revision,
+                machine,
+                route,
+                &files::executable()?,
+                &std::env::current_dir()?,
+            )?;
+            if structured {
+                let argv: Vec<_> = launch
+                    .argv
+                    .iter()
+                    .map(|arg| {
+                        arg.to_str().context(
+                            "A local path cannot be represented in JSON; run files without --json.",
+                        )
+                    })
+                    .collect::<Result<_>>()?;
+                println!(
+                    "{}",
+                    json!({"ok":true,"schema_version":1,"argv":argv,
+                                     "machine_id":launch.machine_id,"route_id":launch.route_id})
+                );
+            } else {
+                ensure!(
+                    io::stdin().is_terminal() && io::stdout().is_terminal(),
+                    "Open files in a terminal, or add --json to inspect its arguments."
+                );
+                ctrlc::set_handler(|| {})
+                    .context("Could not install terminal interrupt handling")?;
+                let code = connection::run_session(&launch.argv)?;
+                ensure!(
+                    code == 0,
+                    "SSH Files ended (exit {code}). Use ordinary SSH to finish login/key setup, or choose another route explicitly."
+                );
+            }
         }
         Some(Action::ImportSsh {
             config,

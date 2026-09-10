@@ -150,7 +150,7 @@ pub fn capture(output: &Path) -> Result<()> {
         machine: "dev".into(),
         selected: 1,
         fallback: false,
-        connect_after: false,
+        after: None,
     };
     save(
         &picker,
