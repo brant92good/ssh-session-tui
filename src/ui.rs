@@ -5,6 +5,8 @@ mod events;
 mod screenshots;
 #[cfg(feature = "screenshots")]
 pub use screenshots::capture;
+#[cfg(feature = "screenshots")]
+pub(crate) use screenshots::export;
 #[cfg(test)]
 mod tests;
 use crate::{
@@ -29,17 +31,17 @@ use std::{
 };
 
 #[derive(Debug, Clone, Default)]
-struct Input {
-    text: String,
+pub(crate) struct Input {
+    pub(crate) text: String,
     cursor: usize,
 }
 impl Input {
-    fn new(text: impl Into<String>) -> Self {
+    pub(crate) fn new(text: impl Into<String>) -> Self {
         let text = text.into();
         let cursor = text.len();
         Self { text, cursor }
     }
-    fn key(&mut self, key: KeyEvent) {
+    pub(crate) fn key(&mut self, key: KeyEvent) {
         let previous = || {
             self.text[..self.cursor]
                 .char_indices()
@@ -565,9 +567,9 @@ impl Picker {
         }
     }
 }
-struct TerminalGuard;
+pub(crate) struct TerminalGuard;
 impl TerminalGuard {
-    fn enter() -> Result<Self> {
+    pub(crate) fn enter() -> Result<Self> {
         enable_raw_mode()?;
         let guard = Self;
         execute!(io::stdout(), EnterAlternateScreen)?;

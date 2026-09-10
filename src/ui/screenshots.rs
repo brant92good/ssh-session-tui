@@ -22,9 +22,18 @@ fn color(value: Color, fallback: &str) -> String {
     }
 }
 fn save(picker: &Picker, output: &Path, title: &str) -> Result<()> {
-    let (columns, rows) = (100u16, 26u16);
+    export(output, title, 100, 26, |frame| picker.draw(frame))
+}
+
+pub(crate) fn export(
+    output: &Path,
+    title: &str,
+    columns: u16,
+    rows: u16,
+    draw: impl FnOnce(&mut ratatui::Frame),
+) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(columns, rows))?;
-    terminal.draw(|frame| picker.draw(frame))?;
+    terminal.draw(draw)?;
     let width = u32::from(columns) * 9 + 32;
     let height = u32::from(rows) * 19 + 32;
     let mut svg = format!(

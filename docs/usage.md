@@ -96,6 +96,46 @@ connecting, or saving settings. It errors if the companion is missing, the
 route is ambiguous, or the imported alias is unavailable. Without `--json`,
 the command opens the companion and waits for it to close.
 
+### Files chooser
+
+This feature requires 0.8 or newer. Run **`ssh-sessions files`** without a machine argument.
+Use the same `--catalog` option as your normal SSH picker if you keep a custom
+catalog. The chooser lists its groups and servers without making a connection.
+
+- **Enter** on a group expands or folds it. On a server it opens home; on a saved
+  path it opens that directory. **Right** on a server reveals its saved paths.
+- **A** adds a named path for the selected server. **E** edits a selected path.
+  Use **Tab** between Name and Remote path, **Enter** to save, then **Esc** to
+  return to the list. Saving does not open a connection.
+- **Delete** asks before removing a saved path. Press **Delete** again to confirm;
+  this removes the shortcut, not a server file.
+- **R** chooses a route for this session only. Change the device default in the
+  normal SSH picker. A failed connection never tries another route for you.
+- **/** searches servers and saved paths; **F5** reloads edits from other tabs.
+  **F1** shows keys; **Esc** clears a search, closes a dialog, or closes the chooser.
+
+Paths are literal SFTP paths. For example, use `/srv/api` for a project directory;
+the chooser does not expand `~` or `$HOME`. A stale edit stays in its dialog with
+your text intact. A malformed saved-path file leaves server-home browsing usable
+and reports why saved paths are unavailable.
+
+![The native saved-path editor](screenshots/files-path.svg)
+
+The route dialog applies only to the Files session you are opening:
+
+![Choosing a route once without changing the device default](screenshots/files-route.svg)
+
+An explicit command can also specify a remote directory:
+
+```sh
+ssh-sessions files MACHINE_ID --route ROUTE_ID --remote='/srv/project files' --json
+```
+
+With `--json`, a machine is required and the command only prints validated
+arguments. Without it, the same explicit command opens the companion directly.
+
+## Main SSH picker keys
+
 | Key | Action |
 | --- | --- |
 | Arrows, Enter | Choose a machine or local terminal and open it |
@@ -127,6 +167,14 @@ ssh-sessions --catalog C:\MySetup\connections\catalog.json
 changes first. **S → U** commits and pushes the catalog file. If the branch has
 unpublished changes to other files, publish those with your normal Git workflow.
 Resolve conflicting edits with Git before retrying sync.
+
+In **0.8+**, explicit sync also includes named remote paths in
+`catalog.json.files.json` (or your catalog's full filename plus `.files.json`).
+The file is created only when you save a path. Publish includes exactly those
+two metadata files and preserves unrelated staged changes; it does not include
+device route preferences, favorites or custom SSH-config bindings. Pull validates
+the incoming files before changing your checkout. Other devices need this newer
+version to use and publish saved paths; 0.7.0 only understands catalog sync.
 
 Without `--catalog`, Windows stores the catalog under `%LOCALAPPDATA%\SSHSessions`.
 See [data format and sync behavior](design.md) for file locations and fields.

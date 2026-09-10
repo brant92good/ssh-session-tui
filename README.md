@@ -20,16 +20,20 @@ you log out. Your existing SSH client handles the connection.
 
 ## Install
 
+> **0.8.0 release candidate:** the commands below target the new release.
+> Its assets and HTTPS installation checks are pending. The qualified published
+> version is [0.7.0](https://github.com/brant92good/ssh-session-tui/tree/v0.7.0#install).
+
 **Windows — paste into PowerShell:**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.7.0/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.8.0/install.ps1 | iex"
 ```
 
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.7.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.8.0/install.sh | sh
 ```
 
 Run **`ssh-sessions`** in a new terminal. Press **I** to import SSH hosts or **A**
@@ -45,8 +49,8 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | Linux | x64, ARM64 | Native terminal; static binary |
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
-[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.7.0)
-are available for each platform above. See [verification](docs/verification.md)
+[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.8.0)
+will be available for each platform above after publication. See [verification](docs/verification.md)
 for the published-download tests and what remains unqualified.
 
 ## Use the hosts you already have
@@ -95,6 +99,33 @@ key-agent setup. Files needs authentication that works without a prompt; a
 password-only login is not enough. It never silently changes your route after
 a failure.
 
+### Start Files from your server list
+
+**New in 0.8.0:** a Files chooser with named remote paths. This version is a
+prerelease; [verification](docs/verification.md) records its qualification.
+
+Run **`ssh-sessions files`** to browse groups, servers and saved remote paths.
+Open a server's home directory, or save a name such as **API source** for
+`/srv/api` and go straight there next time. The chooser uses your existing
+machine catalog; it does not make you enter the servers again.
+
+![Files chooser with server groups and named remote paths](docs/screenshots/files-picker.svg)
+
+*The actual chooser widgets, rendered with demonstration data.*
+
+| In the Files chooser | Action |
+| --- | --- |
+| Enter | Open server home or the selected saved path |
+| Right / Left | Expand / fold a server's saved paths |
+| A / E / Delete | Add / edit / remove a saved path |
+| R | Choose a route for this session only |
+| / / F5 | Search / reload changes from another tab |
+
+Saved names and paths join the catalog when you explicitly sync through Git.
+Route preferences and numbered favorites still belong to each device. Paths
+are passed literally: `~` and `$HOME` are not expanded by your local shell.
+[Chooser keys and path editing](docs/usage.md#files-chooser).
+
 <details>
 <summary>Keyboard reference and group browser</summary>
 
@@ -140,6 +171,15 @@ ssh-sessions files MACHINE_ID --route ROUTE_ID --json
 SSH client without connecting. `files --json` validates the selected route and
 prints the companion's argument array without launching it; a missing companion
 returns an explicit error. Omit `--json` to open Files in your terminal.
+To start in a particular remote directory:
+
+```sh
+ssh-sessions files MACHINE_ID --route ROUTE_ID --remote='/srv/project files' --json
+```
+
+Omitting the machine opens the chooser; `--json` always requires a machine and
+never opens an interactive UI.
+
 Import, favorites and bulk organization also have
 CLI commands. [Automation examples](docs/usage.md#commands-for-scripts-and-agents)
 and [AGENTS.md](AGENTS.md) document the boundaries and checks.

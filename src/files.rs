@@ -109,6 +109,22 @@ pub fn prepare(
     program: &Path,
     cwd: &Path,
 ) -> Result<Launch> {
+    prepare_at(catalog, revision, machine, route, program, cwd, None)
+}
+
+/// A preset path is literal SFTP data, never a local path or shell expression.
+pub fn prepare_at(
+    catalog: &Catalog,
+    revision: &str,
+    machine: &Machine,
+    route: &Route,
+    program: &Path,
+    cwd: &Path,
+    remote: Option<&str>,
+) -> Result<Launch> {
+    if let Some(path) = remote {
+        crate::file_presets::validate_path(path)?;
+    }
     ensure!(
         cwd.is_absolute() && cwd.is_dir(),
         "The local working directory is unavailable."
@@ -136,8 +152,12 @@ pub fn prepare(
         catalog.load()?.revision == revision,
         "Catalog changed. Reload and choose the machine and route again."
     );
+    let mut argv = arguments(program, machine, route, config.as_deref(), cwd);
+    if let Some(path) = remote {
+        argv.push(format!("--remote={path}").into());
+    }
     Ok(Launch {
-        argv: arguments(program, machine, route, config.as_deref(), cwd),
+        argv,
         title: format!("Files | {} | {}", machine.name, route.name),
         machine_id: machine.id.clone(),
         route_id: route.id.clone(),

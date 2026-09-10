@@ -6,6 +6,43 @@ physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
 ## Native checks
 
+### Files chooser and saved paths — unreleased source (September 11, 2026)
+
+The current source adds the Files start screen and a separate named-path file.
+These changes are not in the 0.7.0 download above. Local Windows verification
+passed 52 active tests; subprocess, opt-in Python compatibility and explicit
+SFTP fixture cases are excluded from that active count.
+All-target, all-feature Clippy and formatting checks passed. This is source
+qualification, not a new release or cross-platform result.
+
+The storage tests cover inert missing-file reads, literal Unicode paths,
+catalog/sidecar revision conflicts, retained orphan records, schema and size
+limits, and preservation of other machines. Ten local-Git tests cover both sync
+directions, first creation and deletion, unrelated staging, merge-only changes,
+invalid history later repaired, and invalid incoming JSON or Git symlinks rejected
+before HEAD or working files change. A deletion regression first reproduced a
+Git partial-commit pathspec error; the corrected staged and unstaged deletion
+cases passed before the combined suite. The Unix filesystem symlink test still
+requires a Unix runner.
+
+An owned Windows ConPTY check passed with a compiled no-network companion. It
+starts offline, saves a path with trailing Enter events, scrolls a 25-route list
+in a 22-row terminal, and checks the exact selected route and literal path in
+the companion's arguments. It also checks unchanged device preferences, readable
+failure output until Enter, and a stale saved-path edit retaining its input.
+Model checks cover no-launch browsing, malformed-path recovery and input limits.
+
+A separate actual handoff test opens the chooser, selects a saved directory on
+a disposable loopback OpenSSH server, finds its remote marker in the compiled
+SSH Files 0.2 browser, then closes Files and returns to the same tree. It passed
+in 0.91 seconds, with catalog bytes unchanged and no device preference created.
+Only generated test keys/configuration were used; the fixture is shut down after
+the check. This is read-only navigation, separate from Files transfer tests.
+
+Independent source review checked the chooser handoff and storage/sync changes
+separately from their authors. The new five-platform matrix, published assets,
+HTTPS installation and independent final README review remain separate gates.
+
 ### Optional Files handoff (September 10, 2026)
 
 The Files feature at `a42f567` passed [all five native platform jobs](https://github.com/brant92good/ssh-session-tui/actions/runs/34448841729).
@@ -185,6 +222,9 @@ cargo run --locked --example capture --features screenshots
 The exporter renders the real Ratatui screen buffer using demonstration data.
 The PNG inspection uses a headless browser, without activating desktop windows.
 The SVG files contain no live hosts, local account paths or credentials.
+The same command now also writes `files-picker.svg`, `files-path.svg` and
+`files-route.svg` from the Files chooser's real draw function. Those images are
+marked as current-source features in the documentation until a release ships them.
 
 ## Limits and previous evidence
 

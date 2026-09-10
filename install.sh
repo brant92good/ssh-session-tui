@@ -18,7 +18,7 @@ add_path_line() {
     fi
 }
 main() {
-    version=${SSH_SESSIONS_VERSION:-0.7.0}
+    version=${SSH_SESSIONS_VERSION:-0.8.0}
     case "$version" in ''|*[!A-Za-z0-9.-]*) printf '%s\n' 'Invalid release version.' >&2; return 1;; esac
     install_root=${SSH_SESSIONS_INSTALL_DIR:-${XDG_DATA_HOME:-"$HOME/.local/share"}/ssh-sessions-install}
     case "$install_root" in /*) ;; *) printf '%s\n' 'SSH_SESSIONS_INSTALL_DIR must be absolute.' >&2; return 1;; esac

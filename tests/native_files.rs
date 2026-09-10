@@ -22,6 +22,36 @@ struct Session {
     raw_tail: Vec<u8>,
 }
 impl Session {
+    fn start(command: CommandBuilder, rows: u16, cols: u16) -> Self {
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .unwrap();
+        let child = pair.slave.spawn_command(command).unwrap();
+        let input = pair.master.take_writer().unwrap();
+        let mut reader = pair.master.try_clone_reader().unwrap();
+        let (sender, output) = mpsc::channel();
+        thread::spawn(move || {
+            let mut bytes = [0; 8192];
+            while let Ok(count) = reader.read(&mut bytes) {
+                if count == 0 || sender.send(bytes[..count].to_vec()).is_err() {
+                    break;
+                }
+            }
+        });
+        Self {
+            child,
+            _pair: pair,
+            input,
+            output,
+            parser: vt100::Parser::new(rows, cols, 0),
+            raw_tail: vec![],
+        }
+    }
     fn send(&mut self, value: &str) {
         self.input.write_all(value.as_bytes()).unwrap();
         self.input.flush().unwrap();
@@ -65,12 +95,315 @@ impl Session {
         }
     }
 }
+
+#[test]
+#[ignore = "Requires explicit disposable local SFTP fixture and compiled Files companion"]
+fn actual_files_chooser_opens_saved_remote_path_and_returns_to_the_tree() {
+    use ssh_sessions::file_presets::{FilePresets, Preset};
+    let config = std::env::var_os("SSH_FILES_TEST_CONFIG").expect("SSH_FILES_TEST_CONFIG");
+    let server = std::path::PathBuf::from(
+        std::env::var_os("SSH_FILES_TEST_REMOTE").expect("SSH_FILES_TEST_REMOTE"),
+    );
+    let port: u16 = std::env::var("SSH_FILES_TEST_PORT")
+        .expect("SSH_FILES_TEST_PORT")
+        .parse()
+        .unwrap();
+    let user = std::env::var("SSH_FILES_TEST_USER").expect("SSH_FILES_TEST_USER");
+    let companion = std::env::var_os("SSH_FILES_TEST_BINARY").expect("SSH_FILES_TEST_BINARY");
+    let remote = tempfile::Builder::new()
+        .prefix("chooser-owned-")
+        .tempdir_in(server)
+        .unwrap();
+    fs::write(
+        remote.path().join("remote-preset-reached.txt"),
+        b"read-only navigation marker",
+    )
+    .unwrap();
+    let local = tempfile::tempdir().unwrap();
+    let catalog = Catalog::new(
+        &local.path().join("catalog.json"),
+        &local.path().join("device"),
+    )
+    .unwrap();
+    let machine = Machine {
+        id: "owned".into(),
+        name: "Owned test server".into(),
+        user,
+        group: "Fixtures".into(),
+        tags: vec![],
+        routes: vec![Route {
+            id: "loopback".into(),
+            name: "Loopback".into(),
+            host: "127.0.0.1".into(),
+            port,
+            ssh_alias: Some("fixture".into()),
+        }],
+    };
+    catalog
+        .save(&[machine], &catalog.load().unwrap().revision)
+        .unwrap();
+    write_json(
+        &catalog.device_path.with_extension("ssh-configs.json"),
+        &std::collections::BTreeMap::from([(
+            "owned/loopback",
+            std::path::Path::new(&config).to_str().unwrap(),
+        )]),
+    )
+    .unwrap();
+    let (mut presets, revision) = FilePresets::load(&catalog).unwrap();
+    presets
+        .upsert(
+            &catalog,
+            "owned",
+            Preset {
+                id: "project".into(),
+                name: "Saved project".into(),
+                path: remote.path().to_str().unwrap().replace('\\', "/"),
+            },
+            &catalog.load().unwrap().revision,
+            &revision,
+        )
+        .unwrap();
+    let original = fs::read(&catalog.path).unwrap();
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_ssh-sessions"));
+    command.arg("--catalog");
+    command.arg(&catalog.path);
+    command.arg("--state-dir");
+    command.arg(&catalog.state_dir);
+    command.arg("files");
+    command.env("SSH_FILES_BIN", companion);
+    command.env("TERM", "xterm-256color");
+    command.cwd(local.path());
+    let mut session = Session::start(command, 30, 140);
+    session.expect("Choose a server");
+    session.send("\x1b[B\x1b[C");
+    session.expect("Saved project");
+    session.send("\x1b[B\r");
+    session.expect("remote-preset-reached.txt");
+    assert!(
+        !session
+            .parser
+            .screen()
+            .contents()
+            .contains("Choose a server")
+    );
+    session.send("\x1b[21~");
+    session.expect("Files closed. Choose another server or path.");
+    assert!(session.parser.screen().contents().contains("Saved project"));
+    assert_eq!(original, fs::read(&catalog.path).unwrap());
+    assert!(
+        !catalog.device_path.exists(),
+        "Single-route Files launch created a device preference"
+    );
+    session.send("\x1b");
+    session.exit();
+}
 impl Drop for Session {
     fn drop(&mut self) {
         if !matches!(self.child.try_wait(), Ok(Some(_))) {
             let _ = self.child.kill();
         }
     }
+}
+
+#[test]
+fn files_chooser_waits_for_explicit_selection_preserves_paths_and_errors() {
+    use ssh_sessions::file_presets::{FilePresets, Preset};
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("chooser-companion.rs");
+    fs::write(&source, r#"
+use std::io::{self, Write};
+fn main() {
+    std::fs::write(std::env::var_os("FILES_FIXTURE_LOG").unwrap(), std::env::args().collect::<Vec<_>>().join("\0")).unwrap();
+    println!("CHOOSER_OWNED_FILES_READY");
+    io::stdout().flush().unwrap();
+    let mut input = String::new(); io::stdin().read_line(&mut input).unwrap();
+    println!("OWNED_AUTH_ERROR_RETAINED");
+    std::process::exit(255);
+}
+"#).unwrap();
+    let stub = temp.path().join(if cfg!(windows) {
+        "ssh-files.exe"
+    } else {
+        "ssh-files"
+    });
+    assert!(
+        Command::new("rustc")
+            .arg(&source)
+            .arg("--crate-name")
+            .arg("chooser_companion")
+            .arg("-o")
+            .arg(&stub)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let catalog = Catalog::new(
+        &temp.path().join("catalog.json"),
+        &temp.path().join("device"),
+    )
+    .unwrap();
+    let machine = Machine {
+        id: "lab".into(),
+        name: "Build box".into(),
+        user: "dev".into(),
+        group: "Work/Lab".into(),
+        tags: vec![],
+        routes: (0..25)
+            .map(|i| Route {
+                id: format!("route-{i:02}"),
+                name: format!("Route {i:02}"),
+                host: format!("192.0.2.{}", i + 1),
+                port: 22,
+                ssh_alias: None,
+            })
+            .collect(),
+    };
+    catalog
+        .save(
+            std::slice::from_ref(&machine),
+            &catalog.load().unwrap().revision,
+        )
+        .unwrap();
+    catalog.choose(&machine, "route-00").unwrap();
+    let original_catalog = fs::read(&catalog.path).unwrap();
+    let original_device = fs::read(&catalog.device_path).unwrap();
+    let log = temp.path().join("argv");
+    let binary = env!("CARGO_BIN_EXE_ssh-sessions");
+    let invalid = Command::new(binary)
+        .args(["--catalog"])
+        .arg(&catalog.path)
+        .arg("--state-dir")
+        .arg(&catalog.state_dir)
+        .args(["files", "--json"])
+        .env("SSH_FILES_BIN", &stub)
+        .env("FILES_FIXTURE_LOG", &log)
+        .output()
+        .unwrap();
+    assert!(!invalid.status.success());
+    assert!(!log.exists());
+    let pair = native_pty_system()
+        .openpty(PtySize {
+            rows: 22,
+            cols: 100,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .unwrap();
+    let mut launch = CommandBuilder::new(binary);
+    launch.arg("--catalog");
+    launch.arg(&catalog.path);
+    launch.arg("--state-dir");
+    launch.arg(&catalog.state_dir);
+    launch.arg("files");
+    launch.env("SSH_FILES_BIN", &stub);
+    launch.env("FILES_FIXTURE_LOG", &log);
+    launch.env("TERM", "xterm-256color");
+    launch.cwd(temp.path());
+    let child = pair.slave.spawn_command(launch).unwrap();
+    let input = pair.master.take_writer().unwrap();
+    let mut reader = pair.master.try_clone_reader().unwrap();
+    let (sender, output) = mpsc::channel();
+    thread::spawn(move || {
+        let mut bytes = [0; 8192];
+        while let Ok(count) = reader.read(&mut bytes) {
+            if count == 0 || sender.send(bytes[..count].to_vec()).is_err() {
+                break;
+            }
+        }
+    });
+    let mut session = Session {
+        child,
+        _pair: pair,
+        input,
+        output,
+        parser: vt100::Parser::new(22, 100, 0),
+        raw_tail: vec![],
+    };
+    session.expect("Choose a server");
+    session.expect("Work/Lab");
+    assert!(!log.exists(), "Entering Files connected without a choice");
+    session.send("\x1b[Ba");
+    session.expect("Saved remote path");
+    session.send("Project\t\x15/srv/code ; $HOME/開發\r\r\r");
+    session.expect("Saved. Press Esc");
+    for _ in 0..4 {
+        session.pump();
+    }
+    assert!(
+        !log.exists(),
+        "Trailing editor newlines launched a companion"
+    );
+    let (presets, _) = FilePresets::load(&catalog).unwrap();
+    assert_eq!(presets.for_machine("lab")[0].path, "/srv/code ; $HOME/開發");
+    session.send("\x1b");
+    session.expect("Project");
+    session.send("r");
+    session.expect("Use route once");
+    session.send(&"\x1b[B".repeat(24));
+    session.expect("Route 24");
+    assert!(!log.exists(), "Moving the route cursor connected");
+    session.send("\r");
+    session.expect("CHOOSER_OWNED_FILES_READY");
+    let argv: Vec<_> = fs::read_to_string(&log)
+        .unwrap()
+        .split('\0')
+        .map(str::to_owned)
+        .collect();
+    assert!(argv.windows(2).any(|v| v == ["--route-id", "route-24"]));
+    assert!(argv.windows(2).any(|v| v == ["--host", "192.0.2.25"]));
+    assert!(argv.contains(&"--remote=/srv/code ; $HOME/開發".to_string()));
+    assert_eq!(original_device, fs::read(&catalog.device_path).unwrap());
+    assert!(!session.parser.screen().alternate_screen());
+    session.send("done\r");
+    session.expect("press Enter to return");
+    assert!(
+        session
+            .parser
+            .screen()
+            .contents()
+            .contains("OWNED_AUTH_ERROR_RETAINED")
+    );
+    assert!(!session.parser.screen().alternate_screen());
+    session.send("\r");
+    session.expect("no fallback was attempted");
+    assert!(session.parser.screen().alternate_screen());
+    session.send("e");
+    session.expect("Saved remote path");
+    let (mut concurrent, revision) = FilePresets::load(&catalog).unwrap();
+    concurrent
+        .upsert(
+            &catalog,
+            "lab",
+            Preset {
+                id: "other".into(),
+                name: "Other tab".into(),
+                path: "/other".into(),
+            },
+            &catalog.load().unwrap().revision,
+            &revision,
+        )
+        .unwrap();
+    session.send("\x15Uncommitted\r");
+    session.expect("Saved paths changed in another tab");
+    assert!(session.parser.screen().contents().contains("Uncommitted"));
+    assert_eq!(
+        FilePresets::load(&catalog).unwrap().0.for_machine("lab")[0].name,
+        "Project"
+    );
+    assert_eq!(
+        argv,
+        fs::read_to_string(&log)
+            .unwrap()
+            .split('\0')
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(original_catalog, fs::read(&catalog.path).unwrap());
+    assert_eq!(original_device, fs::read(&catalog.device_path).unwrap());
+    session.send("\x1b");
+    session.expect("Choose a server");
+    session.send("\x1b");
+    session.exit();
 }
 
 #[test]
