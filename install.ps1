@@ -1,6 +1,6 @@
 param(
     [string]$InstallDir = $env:SSH_SESSIONS_INSTALL_DIR,
-    [string]$Version = $(if ($env:SSH_SESSIONS_VERSION) { $env:SSH_SESSIONS_VERSION } else { '0.6.1' }),
+    [string]$Version = $(if ($env:SSH_SESSIONS_VERSION) { $env:SSH_SESSIONS_VERSION } else { '0.6.2' }),
     [string]$Binary = $env:SSH_SESSIONS_BINARY,
     [string]$Sha256 = $env:SSH_SESSIONS_SHA256,
     [switch]$NoPath = ($env:SSH_SESSIONS_NO_PATH -eq '1')

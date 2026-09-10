@@ -1,6 +1,6 @@
 # Verification
 
-The production candidate is **SSH Sessions 0.6.1**, implemented in Rust.
+The production candidate is **SSH Sessions 0.6.2**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
@@ -28,7 +28,12 @@ the picker while PowerShell was still active. A temporary caught SIGINT handler
 now keeps the Python parent waiting, then restores the previous handler when
 the shell exits. Native handling was already correct. Both Windows sequences
 passed locally, with 33 ordinary native tests and Clippy passing. Hosted
-cross-platform qualification for this patch is pending.
+cross-platform qualification passed in all five native jobs at
+[`7377cea`](https://github.com/brant92good/ssh-session-tui/actions/runs/34447493809),
+including Windows compatibility and Linux loopback SSH checks. The initial
+assetless `v0.6.1` tag is retained: it caught a stale installer-test version and
+a macOS test that incorrectly rejected the shell appending its own history.
+The corrections change test expectations, not session cleanup behavior.
 
 On September 10, 2026, the 32 native tests passed locally on Windows. These cover
 catalog validation, stale edits, route/favorite persistence, Unicode case folding,

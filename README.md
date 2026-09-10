@@ -25,13 +25,13 @@ you log out. Your existing SSH client handles the connection.
 **Windows — paste into PowerShell:**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.2/install.ps1 | iex"
 ```
 
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.6.2/install.sh | sh
 ```
 
 Run **`ssh-sessions`** in a new terminal. Press **I** to import SSH hosts or **A**
@@ -47,7 +47,11 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | Linux | x64, ARM64 | Native terminal; static binary |
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
+<<<<<<< HEAD
 [Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.0)
+=======
+[Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.6.2)
+>>>>>>> 8a94925 (Prepare 0.6.2 patch after cross-platform fixture qualification)
 are available for each platform above. See [verification](docs/verification.md)
 for the published-download tests and what remains unqualified.
 

@@ -1,4 +1,4 @@
-SSH Sessions 0.6.1 clears the terminal display and scrollback between shell
+SSH Sessions 0.6.2 clears the terminal display and scrollback between shell
 sessions, so a previous PowerShell prompt or SSH logout does not reappear behind
 the next connection. An SSH failure stays visible until you press Enter.
 Command-history files are not changed.
