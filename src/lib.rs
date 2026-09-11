@@ -1,7 +1,9 @@
 pub mod catalog;
 pub mod connection;
 pub mod favorites;
+pub mod file_presets;
 pub mod files;
+pub mod files_picker;
 pub mod organization;
 pub mod ssh_import;
 pub mod sync;

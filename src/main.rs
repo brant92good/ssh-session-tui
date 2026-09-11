@@ -5,7 +5,7 @@ use ssh_sessions::{
     catalog::{Catalog, Machine, Route, Snapshot},
     connection,
     favorites::{Favorites, LOCAL},
-    files, organization, ssh_import,
+    files, files_picker, organization, ssh_import,
     sync::GitSync,
     ui,
 };
@@ -67,12 +67,14 @@ enum Action {
         #[arg(long)]
         json: bool,
     },
-    /// Open SSH Files for a machine; --json prints arguments without launching it.
+    /// Choose a server for Files, or name a machine for an explicit handoff.
     Files {
-        machine: String,
-        #[arg(long)]
+        machine: Option<String>,
+        #[arg(long, requires = "machine")]
         route: Option<String>,
-        #[arg(long)]
+        #[arg(long, requires = "machine")]
+        remote: Option<String>,
+        #[arg(long, requires = "machine")]
         json: bool,
     },
     /// Preview SSH hosts. Import only with --apply and --host NAME or --all.
@@ -302,16 +304,22 @@ fn run(args: Args) -> Result<()> {
         Some(Action::Files {
             machine,
             route,
+            remote,
             json: structured,
         }) => {
+            let Some(machine) = machine else {
+                files_picker::run(&catalog)?;
+                return Ok(());
+            };
             let (machine, route) = selection(&catalog, &snapshot, &machine, route.as_deref())?;
-            let launch = files::prepare(
+            let launch = files::prepare_at(
                 &catalog,
                 &snapshot.revision,
                 machine,
                 route,
                 &files::executable()?,
                 &std::env::current_dir()?,
+                remote.as_deref(),
             )?;
             if structured {
                 let argv: Vec<_> = launch

@@ -106,7 +106,7 @@ jobs:
       - name: Publish reviewed tag as a prerelease, never overwrite existing assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --prerelease --title "SSH Sessions $GITHUB_REF_NAME" --notes-file docs/releases/native.md
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --prerelease --title "SSH Sessions $GITHUB_REF_NAME" --notes-file "docs/releases/${GITHUB_REF_NAME#v}.md"
   released-install:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: prerelease

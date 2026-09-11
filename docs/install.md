@@ -1,5 +1,9 @@
 # Install SSH Sessions
 
+> **0.8.0 prerelease:** compiled downloads and HTTPS installation checks have
+> passed. See [verification](verification.md#080-prerelease-september-11-2026)
+> for tested paths and the remaining macOS desktop beta boundary.
+
 The [README commands](../README.md#install) download a compiled Rust executable
 for your OS and CPU, verify its SHA-256 checksum, and add its `bin` directory to
 your user PATH. No Python, Cargo or Git is installed. Setup does not ask for a
@@ -41,7 +45,7 @@ a subcommand. Keep device state outside the shared repository.
 ## Choose an install location
 
 ```powershell
-irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.7.0/install.ps1 -OutFile install-ssh-sessions.ps1
+irm https://raw.githubusercontent.com/brant92good/ssh-session-tui/v0.8.0/install.ps1 -OutFile install-ssh-sessions.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install-ssh-sessions.ps1 -InstallDir C:\Tools\SSHSessions -NoPath
 C:\Tools\SSHSessions\bin\ssh-sessions.exe --version
 ```

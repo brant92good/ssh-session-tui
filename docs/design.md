@@ -10,9 +10,11 @@ The three layers are:
 ```text
 Your private settings repo
   connections/catalog.json          Shared machine metadata
+  connections/catalog.json.files.json  Shared saved remote paths (0.8+)
   terminal/                         Public Terminal Workspace submodule
     apps/ssh-session-tui/            This public leaf
     apps/port-forward-tui/           Independent port-forwarding leaf
+    apps/ssh-files/                  Optional SFTP companion
   skills/                           Optional private skills sibling
 ```
 
@@ -74,8 +76,9 @@ are CLI operations for local metadata and never start a session.
 
 Catalog writes use a device-local file lock, a revision check and atomic file
 replacement. A second tab with an older snapshot must reload instead of
-overwriting a newer edit. Git synchronizes the shared file; its normal conflict
-rules still apply across computers. Device preference files are never added by
+overwriting a newer edit. The 0.7.0 sync command handles the catalog;
+0.8 also handles the saved-path file described below. Git's normal
+conflict rules still apply across computers. Device preference files are never added by
 the sync command. Explicit SSH import reads config metadata, never private/public
 key files. Custom config paths remain device-local. See [import boundaries](ssh-import.md).
 
@@ -98,9 +101,76 @@ companion through an explicit absolute `SSH_FILES_BIN`, the executable's own
 directory, or PATH, without executing candidates during discovery. The same
 stable machine/route IDs and imported alias/HostName combination reach the
 companion through an argument array. Catalog revision and local binding changes
-during preparation are rejected. No shared schema or authentication policy is
-added. A Files error returns to the picker without automatic fallback or a
+during preparation are rejected. This does not change the catalog schema or
+authentication policy. A Files error returns to the picker without automatic fallback or a
 preferred-route change. See [the user path](usage.md#open-the-file-browser).
+
+## Saved remote paths and the Files chooser
+
+Added in 0.8. `ssh-sessions files`
+without a machine opens a separate Group → Server → Path chooser. It reads the
+same catalog as the SSH picker. A server opens the companion's default remote
+directory (`.`); a path row adds one literal `--remote=PATH` argument. An explicit
+machine with `--json` stays read-only and never launches the chooser or companion.
+
+The saved-path filename appends `.files.json` to the **whole** catalog filename.
+For example, `catalog.json` uses `catalog.json.files.json`; `work.json` uses
+`work.json.files.json`. Version 1 contains only names and remote paths:
+
+```json
+{
+  "version": 1,
+  "machines": {
+    "development": [
+      { "id": "api", "name": "API source", "path": "/srv/api" }
+    ]
+  }
+}
+```
+
+Machine and preset IDs use the catalog's identifier rules. Preset IDs and names
+are unique within a machine; names compare using trimmed Unicode 15 case folding.
+Names allow 1–80 characters, and paths allow 1–4096 UTF-8 bytes. Control characters
+are rejected. The file is limited to 128 KiB, 64 paths per machine and 2048 paths
+in total. Remote path bytes are otherwise preserved, including spaces, `~`,
+`$HOME` and `..`; the picker does not expand or normalize them locally.
+
+Missing data means no saved paths and does not create a file. Malformed data
+shows an error and disables path operations while leaving server-home selection
+available. Unknown fields, duplicate records, symlinks and non-files are rejected.
+Records for a machine removed from the catalog remain in the saved-path file;
+editing another machine does not discard them.
+
+Edits hold the existing catalog lock and require both the catalog and saved-path
+digests to match. A stale edit retains its typed input and reports the conflict.
+Saving a path does not connect, change a route, or modify anything on the server.
+The saved confirmation stays open until Esc, so trailing pasted newlines cannot
+turn a successful save into a connection.
+
+Before handoff, the chooser freezes the selected machine/preset IDs, literal path
+and revisions. It checks saved paths before and after the existing catalog/config
+preparation. A changed or deleted selection requires review. R chooses a route
+once; it does not write the device preference. The normal SSH picker still owns
+default-route changes. Companion failures remain readable until acknowledged,
+then return to the chooser without trying another route.
+
+## Explicit metadata sync
+
+App-created publication allows exactly the catalog and its own `.files.json`
+sibling. It does not scan for other matching filenames or add device state. Publish validates each
+unpublished revision, changes against every merge parent, and HEAD after commit
+hooks. An invalid earlier revision is refused even if a later commit repairs it.
+Unrelated staged files remain staged and are not included in the app's commit.
+
+The optional saved-path file can be absent, created for the first time or
+explicitly deleted. Deleting it through Git removes the saved shortcuts, not
+remote files. Publish handles both staged and unstaged deletion. Pull requires
+a clean checkout, fetches, and validates both incoming metadata files before
+fast-forwarding the entire repository. That pull can update other tracked files
+in the checkout; the two-file publication limit does not restrict a Git pull.
+Invalid incoming metadata leaves HEAD and the working
+files unchanged. Resolve Git conflicts outside the app; sync never silently
+merges conflicting path edits or runs automatically during startup.
 
 The existing Herdr/Ports paired workspace keeps its own catalog and context
 rules. Joining those catalogs and designing agent-heavy SSH behavior require
