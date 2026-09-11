@@ -1,15 +1,39 @@
 # Verification
 
-The published native release is **SSH Sessions 0.7.0**, implemented in Rust.
+The current native prerelease is **SSH Sessions 0.8.0**, implemented in Rust.
 macOS remains **beta**. Hosted pseudo-terminal tests do not qualify every
 physical desktop, terminal emulator, SSH agent, proxy or VPN configuration.
 
+## 0.8.0 prerelease (September 11, 2026)
+
+The immutable [0.8.0 release](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.8.0)
+at `9a9d3a25d9f884052f3b538af7f8d97cdfafe70d` passed
+[all eleven native release jobs](https://github.com/brant92good/ssh-session-tui/actions/runs/34521685615):
+five platform builds/tests, publication and five actual released-installer jobs.
+Windows x64, Linux x64/ARM64 and macOS Intel/Apple Silicon are included.
+macOS terminal CI remains separate from desktop qualification.
+
+Independent Windows checks downloaded the published binary and matched both its
+sidecar and GitHub asset digest. SHA-256:
+`c4797d09ebb9bcd0fd239dac2e6a899c10c89b82a019c60a085990100c54d14c`.
+Actual tagged HTTPS installation passed on PowerShell 5.1 and 7: fresh install,
+update, checksum rejection, saved favorites and a polluted Python/Conda environment.
+The compiled app also ran with Python, Cargo and Conda excluded from PATH.
+
+Two chooser/handoff checks passed against that exact released executable in an
+owned Windows pseudo-terminal. They cover selection before launch, literal saved
+paths, explicit route choice, stale edits, visible failure acknowledgement and
+frozen arguments. The companion was a no-network test program. The separate
+chooser-to-real-SFTP check below is source evidence; it was not rerun against this
+release. An independent README and rendered-visual audit passed. No physical
+desktop, personal SSH server or OS file drag/drop result is implied.
+
 ## Native checks
 
-### Files chooser and saved paths — unreleased source (September 11, 2026)
+### Files chooser and saved paths — source qualification (September 11, 2026)
 
 The current source adds the Files start screen and a separate named-path file.
-These changes are not in the 0.7.0 download above. Local Windows verification
+These changes first shipped in 0.8.0. The pre-release local Windows verification
 passed 52 active tests; subprocess, opt-in Python compatibility and explicit
 SFTP fixture cases are excluded from that active count.
 All-target, all-feature Clippy and formatting checks passed. This is source
@@ -22,8 +46,9 @@ directions, first creation and deletion, unrelated staging, merge-only changes,
 invalid history later repaired, and invalid incoming JSON or Git symlinks rejected
 before HEAD or working files change. A deletion regression first reproduced a
 Git partial-commit pathspec error; the corrected staged and unstaged deletion
-cases passed before the combined suite. The Unix filesystem symlink test still
-requires a Unix runner.
+cases passed before the combined suite. The Unix filesystem symlink test was not
+exercised by these Windows runs; the later native release matrix supplies the
+separate Unix results.
 
 An owned Windows ConPTY check passed with a compiled no-network companion. It
 starts offline, saves a path with trailing Enter events, scrolls a 25-route list
@@ -40,8 +65,9 @@ Only generated test keys/configuration were used; the fixture is shut down after
 the check. This is read-only navigation, separate from Files transfer tests.
 
 Independent source review checked the chooser handoff and storage/sync changes
-separately from their authors. The new five-platform matrix, published assets,
-HTTPS installation and independent final README review remain separate gates.
+separately from their authors. The later five-platform release, HTTPS installation
+and independent README gates are recorded above; they do not change what these
+earlier source tests observed.
 
 ### Optional Files handoff (September 10, 2026)
 

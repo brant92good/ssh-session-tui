@@ -1,7 +1,8 @@
 # Install SSH Sessions
 
-> **0.8.0 release candidate:** assets and HTTPS installation checks are pending.
-> For the qualified published version, use the [0.7.0 instructions](https://github.com/brant92good/ssh-session-tui/tree/v0.7.0#install).
+> **0.8.0 prerelease:** compiled downloads and HTTPS installation checks have
+> passed. See [verification](verification.md#080-prerelease-september-11-2026)
+> for tested paths and the remaining macOS desktop beta boundary.
 
 The [README commands](../README.md#install) download a compiled Rust executable
 for your OS and CPU, verify its SHA-256 checksum, and add its `bin` directory to

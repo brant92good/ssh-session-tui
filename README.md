@@ -20,9 +20,9 @@ you log out. Your existing SSH client handles the connection.
 
 ## Install
 
-> **0.8.0 release candidate:** the commands below target the new release.
-> Its assets and HTTPS installation checks are pending. The qualified published
-> version is [0.7.0](https://github.com/brant92good/ssh-session-tui/tree/v0.7.0#install).
+> **0.8.0 prerelease:** compiled downloads and their HTTPS installers have passed
+> the [release checks](docs/verification.md#080-prerelease-september-11-2026).
+> macOS remains beta pending desktop qualification.
 
 **Windows — paste into PowerShell:**
 
@@ -50,7 +50,7 @@ Git is optional for sharing a catalog. [Install, update and uninstall](docs/inst
 | macOS | Apple Silicon, Intel | **Beta** — hosted terminal tests, desktop qualification ongoing |
 
 [Release files and checksums](https://github.com/brant92good/ssh-session-tui/releases/tag/v0.8.0)
-will be available for each platform above after publication. See [verification](docs/verification.md)
+are available for each platform above. See [verification](docs/verification.md)
 for the published-download tests and what remains unqualified.
 
 ## Use the hosts you already have
